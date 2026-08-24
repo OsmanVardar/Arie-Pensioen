@@ -22,8 +22,9 @@ dag 250 tot en met dag 0.
 | telefoonnummer | **nog niet ingevuld** |
 | ploegenrooster | **nog niet ingevuld** |
 | 103 berichten met kantoorritme | **moeten herschreven worden** |
-| gepusht naar GitHub | **nog niet** |
-| gedeployed | **nog niet** |
+| gepusht naar GitHub | ja, `OsmanVardar/Arie-Pensioen` (privé) |
+| gedeployed | ja, https://arie-pensioen.vercel.app |
+| `CRON_SECRET` in Vercel | **nog niet ingesteld** |
 
 ## Hoe het in elkaar zit
 
@@ -117,40 +118,54 @@ kantine, gehoorbescherming en de lijn die blijft draaien.
 
 ## Naar GitHub en Vercel
 
-Er staat een commit klaar op branch `main`. De repo-identiteit is lokaal op
-`OsmanVardar@users.noreply.github.com` gezet, zodat je werkmailadres niet in de
-commits belandt. Wil je je echte privé-adres gebruiken:
+Dit staat allemaal al: de repo is gekoppeld aan Vercel en elke push naar `main` deployt
+automatisch naar https://arie-pensioen.vercel.app.
 
-```bash
-git config user.email "jouwadres@voorbeeld.nl"
+### De git-identiteit in deze map
+
+Lokaal, dus alleen hier, staat:
+
+```
+275991538+OsmanVardar@users.noreply.github.com
 ```
 
-### Pushen
+Dat is het noreply-adres van je GitHub-account. **Verander dit niet met `--global`** —
+globaal staat je Olympia-werkadres, en dat moet daar blijven voor je werkrepo's.
 
-Dit moet vanuit een gewone terminal, want er komt een inlogvenster van GitHub bij:
+Vercel blokkeert een deployment als het commit-adres niet aan een GitHub-account te
+koppelen is. De knop *"Fix Git Configuration"* in Vercel stelt dan `git config --global`
+voor met een voorbeeldadres erin. Volg dat niet: het is hier al goed gezet, lokaal, met
+het juiste adres. Een eenmaal geblokkeerde deployment blijft trouwens geblokkeerd; er moet
+gewoon een nieuwe komen.
 
-```bash
-git push -u origin main
-```
-
-Kies in dat venster het account **OsmanVardar**, niet een werkaccount. Lukt inloggen niet,
-maak dan op GitHub een Personal Access Token aan met `repo`-rechten en gebruik die als
-wachtwoord.
-
-### Vercel eraan hangen
-
-Het project bestaat al: `vercel.com/ovardar-5825/arie-pensioen`. Ga daar naar
-**Settings → Git** en verbind de repo `OsmanVardar/Arie-Pensioen`. Daarna deployt elke
-push automatisch.
-
-Liever zonder GitHub? Dan vanuit een gewone terminal:
+Wil je je echte privé-adres gebruiken in plaats van het noreply-adres, dan moet dat adres
+aan je GitHub-account gekoppeld zijn:
 
 ```bash
-npm run deploy
+git config --local user.email "jouwadres@voorbeeld.nl"
 ```
 
-Dat bouwt eerst lokaal en doet dan `vercel --prod`. Let bij de vraag *"Which scope?"* op
-dat je **ovardar-5825** kiest en niet `olympia3`.
+### Iets wijzigen en online zetten
+
+**Belangrijk:** Vercel draait zelf geen build. Wat in `public/` en `api/_data.js` staat is
+wat online komt. Die bestanden moeten dus mee in de commit, anders zet je een oude versie
+online terwijl je content wél veranderd is.
+
+De juiste volgorde is dus altijd:
+
+```bash
+npm run build
+```
+
+```bash
+git add -A && git commit -m "wat je veranderd hebt" && git push
+```
+
+Dat laatste triggert de deployment vanzelf.
+
+Er bestaat ook `npm run deploy` (build plus `vercel --prod`). Dat uploadt rechtstreeks
+buiten git om en levert deployments op die niet aan een commit hangen. Handig om iets snel
+te proberen, maar gebruik voor het echte werk de route hierboven.
 
 Vercel draait zelf geen build: `buildCommand` staat op een echo en `outputDirectory` op
 `public`. Wat je uploadt is dus precies wat je lokaal getest hebt. Daarom altijd
@@ -205,7 +220,7 @@ node scripts/testpush.mjs --echt
 Na de deploy, met de hand:
 
 ```bash
-curl "https://JOUW-PROJECT.vercel.app/api/cron?secret=HET_GEHEIM"
+curl "https://arie-pensioen.vercel.app/api/cron?secret=HET_GEHEIM"
 ```
 
 Of eerst kijken wat er zou gebeuren zonder te versturen, door `&droog=1` toe te voegen.
@@ -213,7 +228,7 @@ Of eerst kijken wat er zou gebeuren zonder te versturen, door `&droog=1` toe te 
 ## De site
 
 ```
-https://JOUW-PROJECT.vercel.app/cgj8eewjdc7j2w3dwdltk2/
+https://arie-pensioen.vercel.app/cgj8eewjdc7j2w3dwdltk2/
 ```
 
 Onraadbaar pad, `noindex`, en `robots.txt` staat op alles weigeren. Zet hem op je
@@ -238,7 +253,7 @@ De cron staat in `vercel.json` op `0 6 * * *`, dus 06:00 UTC: 08:00 in de zomert
 Op het gratis Hobby-plan is dat **ongeveer** op tijd — Vercel start de run binnen het uur
 na het ingestelde tijdstip. Voor een ochtendberichtje prima. Wil je het op de minuut,
 maak dan een gratis account op [cron-job.org](https://cron-job.org), laat die dagelijks
-`https://JOUW-PROJECT.vercel.app/api/cron?secret=HET_GEHEIM` aanroepen, en haal het
+`https://arie-pensioen.vercel.app/api/cron?secret=HET_GEHEIM` aanroepen, en haal het
 `crons`-blok uit `vercel.json`.
 
 ## Berichten aanpassen
