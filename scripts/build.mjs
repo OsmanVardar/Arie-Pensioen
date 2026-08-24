@@ -94,33 +94,8 @@ if (!(config.startdatum || '').trim()) {
   }
 }
 
-// intro alleen nodig als we niet bij het eerste bericht beginnen
-let intro = null;
-if (startDag < hoogsteDag) {
-  const pad = join(root, 'content', '_intro.md');
-  if (existsSync(pad)) {
-    const ruw = readFileSync(pad, 'utf8').replace(/<!--[\s\S]*?-->/g, '').trim();
-    if (ruw) {
-      intro = ruw
-        .replace(/\{naam\}/g, config.naam)
-        .replace(/\{dagen\}/g, startDag === 1 ? 'één dag' : `${startDag} dagen`);
-    }
-  }
-  if (!intro) waarschuwingen.push('startdatum ligt na het eerste bericht, maar content/_intro.md is leeg of ontbreekt');
-}
-
-// Het introblok heeft zelf al een aanhef. Die van het bericht eronder moet er dan af,
-// anders staat er twee keer "Beste Arie,".
-let introTekst = null;
-if (intro) {
-  const eerste = berichten.find((b) => b.dag === startDag);
-  if (!eerste) {
-    fouten.push(`er is geen bericht voor dag ${startDag}, dus de startdatum kan niet kloppen`);
-  } else {
-    const zonderAanhef = eerste.tekst.replace(/^\s*Beste[^\n,]*,\s*\n+/, '');
-    introTekst = intro + '\n\n' + zonderAanhef;
-  }
-}
+// Het introblok wordt verderop samengesteld, ná het rooster: het wil het aantal
+// diensten kunnen noemen en dat staat pas na stap 4 op de berichten.
 
 // ---- 4. rooster ----------------------------------------------------------
 
@@ -184,6 +159,38 @@ if (heeftRooster) {
   if (buiten) waarschuwingen.push(`${buiten} roosterdatums vallen buiten het aftelvenster en worden niet meegerekend`);
   const zonder = berichten.filter((b) => !rooster.diensten[b.datum]).length;
   if (zonder) waarschuwingen.push(`${zonder} van de ${berichten.length} aftelddagen hebben nog geen dienst in het rooster`);
+}
+
+// ---- 4b. introblok -------------------------------------------------------
+// Moet ná het rooster, want {diensten} leest dienstenTeGaan van het startbericht.
+
+let introTekst = null;
+if (startDag < hoogsteDag) {
+  const eerste = berichten.find((b) => b.dag === startDag);
+  const pad = join(root, 'content', '_intro.md');
+  let intro = null;
+
+  if (existsSync(pad)) {
+    const ruw = readFileSync(pad, 'utf8').replace(/<!--[\s\S]*?-->/g, '').trim();
+    if (ruw) {
+      const teGaan = eerste?.dienstenTeGaan;
+      intro = ruw
+        .replace(/\{naam\}/g, config.naam)
+        .replace(/\{dagen\}/g, startDag === 1 ? 'één dag' : `${startDag} dagen`)
+        .replace(/\{diensten\}/g, teGaan === undefined
+          ? 'geen idee, er staat nog geen rooster'
+          : (teGaan === 1 ? 'één dienst' : `${teGaan} diensten`));
+    }
+  }
+
+  if (!intro) {
+    waarschuwingen.push('startdatum ligt na het eerste bericht, maar content/_intro.md is leeg of ontbreekt');
+  } else if (!eerste) {
+    fouten.push(`er is geen bericht voor dag ${startDag}, dus de startdatum kan niet kloppen`);
+  } else {
+    // het introblok heeft zelf al een aanhef; die van het bericht eronder moet eraf
+    introTekst = intro + '\n\n' + eerste.tekst.replace(/^\s*Beste[^\n,]*,\s*\n+/, '');
+  }
 }
 
 // ---- 5. stoppen bij fouten ----------------------------------------------
