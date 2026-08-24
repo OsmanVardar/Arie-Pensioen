@@ -2,3 +2,6 @@ node_modules/
 .vercel/
 .secrets-eenmalig.txt
 .DS_Store
+
+.vercel
+.env*
