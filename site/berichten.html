@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#12211c">
+<title>Alle berichten</title>
+<link rel="stylesheet" href="stijl.css">
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Alle berichten</h1>
+  <p class="uitleg" id="samenvatting"></p>
+
+  <input class="zoek" id="zoek" type="search" placeholder="Zoeken in de berichten, of typ een dagnummer">
+
+  <div class="lijst" id="lijst"></div>
+
+  <div class="kaart" id="detail" hidden>
+    <div class="kop" id="detailkop"></div>
+    <div class="bericht" id="detailtekst"></div>
+    <div class="knoppen" style="margin-top:1.25rem">
+      <a class="knop wa" id="detailwa" href="#">Openen in WhatsApp</a>
+      <button id="detailsluit">Sluiten</button>
+    </div>
+  </div>
+
+</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+(function () {
+  var A = window.Aftellen, cfg = A.cfg;
+  var el = function (id) { return document.getElementById(id); };
+
+  A.navTekenen('berichten.html');
+
+  el('samenvatting').textContent =
+    A.alles.length + ' berichten, van dag ' + cfg.hoogsteDag + ' tot en met 0. ' +
+    'Tik op een regel om het hele bericht te lezen.';
+
+  function eersteZin(tekst) {
+    var regels = tekst.split('\n').filter(function (r) { return r.trim(); });
+    return regels[2] || regels[1] || regels[0] || '';
+  }
+
+  function tekenen(filter) {
+    var q = (filter || '').trim().toLowerCase();
+    var lijst = el('lijst');
+    lijst.innerHTML = '';
+    var aantal = 0;
+
+    A.alles.forEach(function (b) {
+      if (b.dag > cfg.startDag) return;
+      if (q) {
+        var raakt = String(b.dag) === q ||
+          b.tekst.toLowerCase().indexOf(q) !== -1 ||
+          b.datum.indexOf(q) !== -1;
+        if (!raakt) return;
+      }
+      aantal++;
+
+      var knop = document.createElement('button');
+      var n = document.createElement('span'); n.className = 'n'; n.textContent = b.dag;
+      var p = document.createElement('span'); p.className = 'p'; p.textContent = eersteZin(b.tekst);
+      var d = document.createElement('span'); d.className = 'd'; d.textContent = A.korteDatum(b.datum);
+      knop.appendChild(n); knop.appendChild(p); knop.appendChild(d);
+      if (A.verstuurd(b.dag)) knop.classList.add('gedaan');
+      knop.onclick = function () { detail(b.dag); };
+      lijst.appendChild(knop);
+    });
+
+    if (!aantal) {
+      var leeg = document.createElement('div');
+      leeg.className = 'leeg';
+      leeg.textContent = 'Niets gevonden voor "' + filter + '".';
+      lijst.appendChild(leeg);
+    }
+  }
+
+  function detail(dag) {
+    var b = A.perDag[dag];
+    el('detailkop').textContent = 'dag ' + dag + ' · ' + A.langeDatum(b.datum);
+    el('detailtekst').textContent = A.tekstVoor(dag);
+    el('detailwa').href = A.waLink(dag);
+    el('detail').hidden = false;
+    el('detail').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  el('detailsluit').onclick = function () { el('detail').hidden = true; };
+  el('zoek').oninput = function () { tekenen(this.value); };
+
+  tekenen('');
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#12211c">
+<title>Rooster</title>
+<link rel="stylesheet" href="stijl.css">
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Ploegenrooster</h1>
+
+  <div id="leeg" hidden>
+    <div class="leeg">
+      Er staat nog geen rooster in <code>rooster.json</code>.<br><br>
+      Zolang dat zo is rekent alles gewoon in dagen en is er niets stuk.
+      Zodra het rooster erin staat verschijnen hier de diensten, het aantal diensten
+      dat nog te gaan is, en de mijlpalen: de laatste nachtdienst, de laatste
+      weekenddienst en de laatste dienst ooit.
+    </div>
+  </div>
+
+  <div id="gevuld" hidden>
+    <div class="cijfers" id="cijfers"></div>
+
+    <h2>Mijlpalen</h2>
+    <div class="lijst" id="mijlpalen"></div>
+
+    <h2>Alle diensten</h2>
+    <p class="uitleg" id="bron"></p>
+    <div class="lijst" id="diensten"></div>
+  </div>
+
+</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+(function () {
+  var A = window.Aftellen, cfg = A.cfg;
+  var el = function (id) { return document.getElementById(id); };
+
+  A.navTekenen('rooster.html');
+
+  if (!cfg.heeftRooster) { el('leeg').hidden = false; return; }
+  el('gevuld').hidden = false;
+
+  var vandaagBericht = A.perDag[A.actueleDag()];
+  var teGaan = vandaagBericht && vandaagBericht.dienstenTeGaan !== undefined
+    ? vandaagBericht.dienstenTeGaan : cfg.dienstenTotaal;
+
+  var soorten = {};
+  A.alles.forEach(function (b) {
+    if (b.dienst && b.dienst !== 'vrij' && b.dag <= cfg.startDag) {
+      soorten[b.dienst] = (soorten[b.dienst] || 0) + 1;
+    }
+  });
+
+  var vakken = [[teGaan, 'diensten te gaan'], [cfg.dienstenTotaal, 'in totaal']];
+  Object.keys(soorten).sort().forEach(function (s) { vakken.push([soorten[s], s]); });
+
+  vakken.forEach(function (v) {
+    var d = document.createElement('div'); d.className = 'cijfer';
+    var b = document.createElement('b'); b.textContent = v[0];
+    var s = document.createElement('span'); s.textContent = v[1];
+    d.appendChild(b); d.appendChild(s);
+    el('cijfers').appendChild(d);
+  });
+
+  var mp = cfg.mijlpalen || {};
+  var keys = Object.keys(mp).sort(function (a, b) { return mp[b] - mp[a]; });
+  if (!keys.length) {
+    el('mijlpalen').innerHTML = '<div class="leeg">Nog geen mijlpalen te bepalen.</div>';
+  } else {
+    keys.forEach(function (k) {
+      var dag = mp[k];
+      var b = A.perDag[dag];
+      var regel = document.createElement('div');
+      regel.className = 'regel kaart';
+      regel.style.margin = '0';
+      regel.style.padding = '.7rem .9rem';
+      var n = document.createElement('span'); n.className = 'n'; n.textContent = dag;
+      var p = document.createElement('span'); p.className = 'p';
+      p.style.whiteSpace = 'normal';
+      p.textContent = (A.MIJLPAALNAMEN[k] || k) + ' — ' + (b ? A.langeDatum(b.datum) : '');
+      regel.appendChild(n); regel.appendChild(p);
+      el('mijlpalen').appendChild(regel);
+    });
+  }
+
+  el('bron').textContent = cfg.roosterBron
+    ? 'Bron: ' + cfg.roosterBron
+    : 'Bron niet ingevuld in rooster.json.';
+
+  A.alles.forEach(function (b) {
+    if (b.dag > cfg.startDag || !b.dienst) return;
+    var regel = document.createElement('div');
+    regel.className = 'regel kaart';
+    regel.style.margin = '0';
+    regel.style.padding = '.55rem .9rem';
+    var n = document.createElement('span'); n.className = 'n'; n.textContent = b.dag;
+    var p = document.createElement('span'); p.className = 'p'; p.textContent = A.langeDatum(b.datum);
+    var badge = document.createElement('span');
+    badge.className = 'dienst ' + b.dienst; badge.textContent = b.dienst;
+    regel.appendChild(n); regel.appendChild(p); regel.appendChild(badge);
+    el('diensten').appendChild(regel);
+  });
+})();
+</script>
+</body>
+</html>

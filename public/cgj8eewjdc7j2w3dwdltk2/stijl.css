@@ -1,0 +1,150 @@
+:root {
+  --bg: #f6f4ee;
+  --kaart: #fff;
+  --rand: #e2ddd1;
+  --rand-zacht: #eee9de;
+  --tekst: #23201a;
+  --zacht: #7a7469;
+  --accent: #0f6b4f;
+  --wa: #25d366;
+  --wa-donker: #1da851;
+  --waarschuwing-bg: #fff4e0;
+  --waarschuwing-rand: #e8cfa0;
+  --waarschuwing-tekst: #6b4a12;
+  --nacht: #2f3a52;
+  --vroeg: #b8862b;
+  --middag: #7a5ea8;
+  --vrij: #0f6b4f;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14171a;
+    --kaart: #1d2126;
+    --rand: #2c323a;
+    --rand-zacht: #23282e;
+    --tekst: #e8e6e1;
+    --zacht: #9aa0a8;
+    --accent: #3ba37c;
+    --waarschuwing-bg: #2e2510;
+    --waarschuwing-rand: #5c4a1c;
+    --waarschuwing-tekst: #e8cf9a;
+    --nacht: #8fa3c9;
+    --vroeg: #e0b055;
+    --middag: #b299dd;
+    --vrij: #3ba37c;
+  }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--tekst);
+  font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+.wrap { max-width: 34rem; margin: 0 auto; padding: 1rem 1.25rem 4rem; }
+
+/* navigatie */
+nav {
+  display: flex; gap: .25rem; justify-content: center;
+  padding: .75rem 0 .25rem; flex-wrap: wrap;
+}
+nav a {
+  color: var(--zacht); text-decoration: none;
+  font-size: .85rem; font-weight: 600;
+  padding: .4rem .75rem; border-radius: 99px;
+}
+nav a[aria-current="page"] { color: var(--tekst); background: var(--rand-zacht); }
+
+/* hero */
+header.hero { text-align: center; padding: 1.25rem 0 1.5rem; }
+.label { font-size: .78rem; letter-spacing: .14em; text-transform: uppercase; color: var(--zacht); }
+.getal {
+  font-size: clamp(4.5rem, 22vw, 7rem); line-height: .95; font-weight: 800;
+  letter-spacing: -.04em; margin: .35rem 0 .1rem; font-variant-numeric: tabular-nums;
+}
+.onder { color: var(--zacht); font-size: .95rem; }
+.balk { height: 6px; border-radius: 99px; background: var(--rand); overflow: hidden; margin-top: 1.25rem; }
+.balk > i { display: block; height: 100%; background: var(--accent); border-radius: 99px; transition: width .4s ease; }
+.balk-tekst { font-size: .75rem; color: var(--zacht); margin-top: .4rem; }
+
+/* cijferrij */
+.cijfers { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: .6rem; margin-top: 1.25rem; }
+.cijfer { background: var(--kaart); border: 1px solid var(--rand); border-radius: 12px; padding: .75rem .5rem; text-align: center; }
+.cijfer b { display: block; font-size: 1.5rem; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.cijfer span { font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--zacht); }
+
+/* kaart */
+.kaart {
+  background: var(--kaart); border: 1px solid var(--rand); border-radius: 16px;
+  padding: 1.4rem 1.3rem; margin: 1.5rem 0 1rem; box-shadow: 0 1px 2px rgba(0,0,0,.04);
+}
+.kaart .kop {
+  display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+  font-size: .78rem; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--zacht); margin-bottom: .9rem;
+}
+.bericht { white-space: pre-wrap; font-size: 1.02rem; }
+
+/* dienstbadge */
+.dienst {
+  font-size: .68rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  padding: .2rem .5rem; border-radius: 99px; border: 1px solid currentColor;
+}
+.dienst.vroeg { color: var(--vroeg); }
+.dienst.middag { color: var(--middag); }
+.dienst.nacht { color: var(--nacht); }
+.dienst.vrij { color: var(--vrij); }
+
+/* knoppen */
+.knoppen { display: grid; gap: .6rem; }
+button, a.knop {
+  -webkit-appearance: none; appearance: none;
+  display: flex; align-items: center; justify-content: center; gap: .5rem;
+  width: 100%; padding: .95rem 1rem; font: inherit; font-weight: 600;
+  border: 1px solid var(--rand); border-radius: 12px;
+  background: var(--kaart); color: var(--tekst); text-decoration: none; cursor: pointer;
+}
+button[disabled] { opacity: .4; cursor: default; }
+a.wa { background: var(--wa); border-color: var(--wa-donker); color: #08130c; font-size: 1.05rem; padding: 1.1rem 1rem; }
+a.wa:active { background: var(--wa-donker); }
+button:active { background: var(--bg); }
+.rij { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+.gedaan { border-color: var(--accent); color: var(--accent); }
+.melding { text-align: center; font-size: .85rem; color: var(--accent); min-height: 1.4rem; margin-top: .6rem; }
+
+/* dagnavigatie */
+.dagnav { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-top: 1.5rem; }
+.dagnav button { width: auto; padding: .5rem .85rem; font-size: .85rem; font-weight: 500; color: var(--zacht); }
+
+/* lijsten */
+.lijst { display: grid; gap: .5rem; }
+.lijst > button, .lijst > div.regel {
+  display: flex; align-items: center; gap: .7rem; text-align: left; justify-content: flex-start;
+  padding: .6rem .8rem; font-weight: 500; font-size: .9rem;
+}
+.lijst .n { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 2.4rem; color: var(--accent); }
+.lijst .p { color: var(--zacht); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.lijst .d { font-size: .7rem; color: var(--zacht); }
+
+/* meldingen */
+.waarschuwing {
+  background: var(--waarschuwing-bg); border: 1px solid var(--waarschuwing-rand);
+  color: var(--waarschuwing-tekst); border-radius: 12px;
+  padding: .8rem 1rem; font-size: .9rem; margin-bottom: 1rem;
+}
+.leeg {
+  border: 1px dashed var(--rand); border-radius: 12px; padding: 1.5rem 1.25rem;
+  color: var(--zacht); font-size: .92rem; text-align: center;
+}
+h1 { font-size: 1.35rem; margin: .5rem 0 1rem; letter-spacing: -.02em; }
+h2 { font-size: 1rem; margin: 2rem 0 .75rem; letter-spacing: -.01em; }
+p.uitleg { color: var(--zacht); font-size: .92rem; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85em;
+  background: var(--rand-zacht); padding: .1rem .35rem; border-radius: 5px; }
+.zoek {
+  width: 100%; padding: .7rem .9rem; font: inherit;
+  border: 1px solid var(--rand); border-radius: 10px;
+  background: var(--kaart); color: var(--tekst); margin-bottom: .75rem;
+}

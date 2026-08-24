@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#12211c">
+<title>Vandaag</title>
+<link rel="stylesheet" href="stijl.css">
+</head>
+<body>
+<div class="wrap">
+
+  <div id="waarschuwing" class="waarschuwing" hidden></div>
+
+  <header class="hero">
+    <div class="label" id="label">nog te gaan</div>
+    <div class="getal" id="getal">–</div>
+    <div class="onder" id="onder"></div>
+    <div class="balk"><i id="balk" style="width:0"></i></div>
+    <div class="balk-tekst" id="balktekst"></div>
+    <div class="cijfers" id="cijfers"></div>
+  </header>
+
+  <div class="kaart">
+    <div class="kop" id="kaartkop"></div>
+    <div class="bericht" id="bericht"></div>
+  </div>
+
+  <div class="knoppen">
+    <a class="knop wa" id="wa" href="#">Openen in WhatsApp</a>
+    <div class="rij">
+      <button id="kopieer">Kopieer tekst</button>
+      <button id="markeer">Markeer verstuurd</button>
+    </div>
+  </div>
+  <div class="melding" id="melding"></div>
+
+  <div class="dagnav">
+    <button id="vorige">&larr; dag ervoor</button>
+    <button id="vandaag">vandaag</button>
+    <button id="volgende">dag erna &rarr;</button>
+  </div>
+
+</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+(function () {
+  var A = window.Aftellen, cfg = A.cfg;
+  var el = function (id) { return document.getElementById(id); };
+  var actief = A.actueleDag();
+
+  A.navTekenen('index.html');
+
+  var w = A.waarschuwingen();
+  if (w.length) { el('waarschuwing').hidden = false; el('waarschuwing').textContent = w.join(' '); }
+
+  function melding(tekst) {
+    el('melding').textContent = tekst;
+    clearTimeout(melding.t);
+    melding.t = setTimeout(function () { el('melding').textContent = ''; }, 2500);
+  }
+
+  function cijfersTekenen(b) {
+    var vakken = [];
+    if (cfg.heeftRooster && b.dienstenTeGaan !== undefined) {
+      vakken.push([b.dienstenTeGaan, b.dienstenTeGaan === 1 ? 'dienst te gaan' : 'diensten te gaan']);
+    }
+    vakken.push([Math.ceil(actief / 7), 'weken']);
+    vakken.push([A.aantalVerstuurd(), 'verstuurd']);
+
+    el('cijfers').innerHTML = '';
+    vakken.forEach(function (v) {
+      var d = document.createElement('div');
+      d.className = 'cijfer';
+      var b2 = document.createElement('b'); b2.textContent = v[0];
+      var s = document.createElement('span'); s.textContent = v[1];
+      d.appendChild(b2); d.appendChild(s);
+      el('cijfers').appendChild(d);
+    });
+  }
+
+  function tekenen() {
+    var b = A.perDag[actief];
+    if (!b) return;
+    var isVandaag = actief === A.dagVandaag;
+
+    el('label').textContent = isVandaag ? 'nog te gaan' : 'vooruitkijken naar';
+    el('getal').textContent = actief;
+    el('onder').textContent = actief === 0
+      ? cfg.naam + ' is met pensioen'
+      : (actief === 1 ? 'dag tot 1 mei 2027' : 'dagen tot 1 mei 2027');
+
+    var gedaan = cfg.startDag - actief;
+    el('balk').style.width = (100 * gedaan / Math.max(cfg.startDag, 1)).toFixed(1) + '%';
+    el('balktekst').textContent = gedaan + ' van ' + cfg.startDag + ' achter de rug';
+
+    cijfersTekenen(b);
+
+    el('kaartkop').innerHTML = '';
+    var datum = document.createElement('span');
+    datum.textContent = A.langeDatum(b.datum) + (isVandaag ? ' · vandaag' : '');
+    el('kaartkop').appendChild(datum);
+
+    if (b.dienst) {
+      var badge = document.createElement('span');
+      badge.className = 'dienst ' + b.dienst;
+      badge.textContent = b.dienst;
+      el('kaartkop').appendChild(badge);
+    }
+    (b.mijlpalen || []).forEach(function (m) {
+      var mp = document.createElement('span');
+      mp.className = 'dienst nacht';
+      mp.textContent = A.MIJLPAALNAMEN[m] || m;
+      el('kaartkop').appendChild(mp);
+    });
+
+    el('bericht').textContent = A.tekstVoor(actief);
+    el('wa').href = A.waLink(actief);
+
+    var m = el('markeer');
+    if (A.verstuurd(actief)) { m.textContent = '✓ verstuurd'; m.classList.add('gedaan'); }
+    else { m.textContent = 'Markeer verstuurd'; m.classList.remove('gedaan'); }
+
+    el('vorige').disabled = actief >= cfg.startDag;
+    el('volgende').disabled = actief <= 0;
+    el('vandaag').hidden = isVandaag;
+  }
+
+  el('vorige').onclick = function () { if (actief < cfg.startDag) { actief++; tekenen(); } };
+  el('volgende').onclick = function () { if (actief > 0) { actief--; tekenen(); } };
+  el('vandaag').onclick = function () { actief = A.actueleDag(); tekenen(); };
+
+  el('kopieer').onclick = function () {
+    var t = A.tekstVoor(actief);
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(t).then(
+        function () { melding('Tekst gekopieerd'); },
+        function () { melding('Kopiëren lukte niet'); });
+    } else melding('Kopiëren kan hier niet');
+  };
+
+  el('markeer').onclick = function () { A.verstuurd(actief, !A.verstuurd(actief)); tekenen(); };
+
+  el('wa').addEventListener('click', function () {
+    if (!A.nummerOk()) return;
+    A.verstuurd(actief, true);
+    setTimeout(tekenen, 400);
+  });
+
+  // met de pijltjes door de dagen
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowLeft') el('vorige').click();
+    if (e.key === 'ArrowRight') el('volgende').click();
+  });
+
+  tekenen();
+})();
+</script>
+</body>
+</html>

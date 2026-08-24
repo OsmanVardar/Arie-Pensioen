@@ -1,0 +1,11 @@
+{
+  "name": "arie-pensioen",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node scripts/testpush.mjs",
+    "deploy": "node scripts/build.mjs && vercel --prod",
+    "wie": "vercel whoami"
+  }
+}

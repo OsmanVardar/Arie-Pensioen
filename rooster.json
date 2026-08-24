@@ -1,0 +1,24 @@
+{
+  "_uitleg": [
+    "Het ploegenrooster van Arie. Zolang 'diensten' leeg is rekent alles gewoon in dagen",
+    "en verdwijnen de dienst-onderdelen van de site. Er gaat dus niets stuk zonder rooster.",
+    "",
+    "Vul per datum in wat voor dienst het is. Toegestane waarden:",
+    "  vroeg   middag   nacht   vrij",
+    "",
+    "Datums die je niet invult gelden als onbekend, niet als vrij. Zo staat er nooit",
+    "iets op de site wat niet klopt.",
+    "",
+    "Voorbeeld:",
+    "  \"2026-09-01\": \"vroeg\",",
+    "  \"2026-09-02\": \"vroeg\",",
+    "  \"2026-09-03\": \"vrij\",",
+    "  \"2026-09-04\": \"nacht\"",
+    "",
+    "Heb je het rooster als PDF, Excel of foto? Stuur het door, dan maak ik er een",
+    "omzetter voor en wordt dit bestand automatisch gevuld."
+  ],
+
+  "bron": "",
+  "diensten": {}
+}

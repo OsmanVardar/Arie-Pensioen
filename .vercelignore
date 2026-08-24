@@ -1,0 +1,5 @@
+# gaat NOOIT mee naar Vercel
+.secrets-eenmalig.txt
+.claude/
+node_modules/
+.vercel/
