@@ -167,10 +167,6 @@ Er bestaat ook `npm run deploy` (build plus `vercel --prod`). Dat uploadt rechts
 buiten git om en levert deployments op die niet aan een commit hangen. Handig om iets snel
 te proberen, maar gebruik voor het echte werk de route hierboven.
 
-Vercel draait zelf geen build: `buildCommand` staat op een echo en `outputDirectory` op
-`public`. Wat je uploadt is dus precies wat je lokaal getest hebt. Daarom altijd
-`npm run deploy` gebruiken en niet los `vercel --prod`, anders zet je een oude build online.
-
 ### Het geheim instellen
 
 In Vercel bij **Settings → Environment Variables**:
