@@ -79,6 +79,21 @@ if (!/^\d{4}-\d{2}-\d{2}$/.test(startdatum)) {
 
 const startDag = dagenTot(startdatum);
 
+// Val: startdatum leeg laten terwijl de eerste datum al voorbij is. Dan begint Arie
+// middenin de reeks zonder introductie, want die zit in het bericht van dag 250.
+if (!(config.startdatum || '').trim()) {
+  const nu = new Intl.DateTimeFormat('en-CA', {
+    timeZone: config.tijdzone, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date());
+  if (nu > eersteDatum) {
+    waarschuwingen.push(
+      `startdatum is leeg, dus het aftellen begint op ${eersteDatum} - maar het is al ${nu}. ` +
+      `Arie valt dan midden in de reeks zonder introductie. Zet "startdatum" in config.json ` +
+      `op de dag dat je het eerste bericht echt verstuurt; dan komt het introblok erbij.`
+    );
+  }
+}
+
 // intro alleen nodig als we niet bij het eerste bericht beginnen
 let intro = null;
 if (startDag < hoogsteDag) {
@@ -92,6 +107,19 @@ if (startDag < hoogsteDag) {
     }
   }
   if (!intro) waarschuwingen.push('startdatum ligt na het eerste bericht, maar content/_intro.md is leeg of ontbreekt');
+}
+
+// Het introblok heeft zelf al een aanhef. Die van het bericht eronder moet er dan af,
+// anders staat er twee keer "Beste Arie,".
+let introTekst = null;
+if (intro) {
+  const eerste = berichten.find((b) => b.dag === startDag);
+  if (!eerste) {
+    fouten.push(`er is geen bericht voor dag ${startDag}, dus de startdatum kan niet kloppen`);
+  } else {
+    const zonderAanhef = eerste.tekst.replace(/^\s*Beste[^\n,]*,\s*\n+/, '');
+    introTekst = intro + '\n\n' + zonderAanhef;
+  }
 }
 
 // ---- 4. rooster ----------------------------------------------------------
@@ -189,7 +217,7 @@ const gedeeld = {
   roosterBron: rooster.bron,
   dienstenTotaal: werkdagen.length,
   mijlpalen,
-  intro,
+  introTekst,
 };
 
 const siteMap = join(root, 'public', config.slug);
@@ -225,7 +253,7 @@ schrijf(join(root, 'public', 'robots.txt'), 'User-agent: *\nDisallow: /\n');
 
 console.log(`\n  ${schoon.length} berichten (dag ${hoogsteDag} t/m 0)`);
 console.log(`  ${paginas} pagina's naar public/${config.slug}/`);
-console.log(`  start op ${startdatum} bij dag ${startDag}${intro ? ' (met introblok)' : ''}`);
+console.log(`  start op ${startdatum} bij dag ${startDag}${introTekst ? ' (met introblok)' : ''}`);
 console.log(heeftRooster
   ? `  rooster: ${werkdagen.length} diensten, mijlpalen: ${Object.keys(mijlpalen).join(', ') || 'geen'}`
   : `  rooster: nog leeg, alles rekent in dagen`);

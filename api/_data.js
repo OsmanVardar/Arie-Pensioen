@@ -10,7 +10,7 @@ export const CONFIG = {
   "roosterBron": "",
   "dienstenTotaal": 0,
   "mijlpalen": {},
-  "intro": null,
+  "introTekst": null,
   "ntfyTopic": "arie-pensioen-p4rsuww60x0ievwv",
   "slug": "cgj8eewjdc7j2w3dwdltk2",
   "siteUrl": ""

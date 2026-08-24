@@ -43,10 +43,9 @@ window.Aftellen = (function () {
 
   // het introblok hoort alleen bij het allereerste bericht dat verstuurd wordt
   function tekstVoor(dag) {
+    if (cfg.introTekst && dag === cfg.startDag) return cfg.introTekst;
     var b = perDag[dag];
-    if (!b) return '';
-    if (cfg.intro && dag === cfg.startDag) return cfg.intro + '\n\n' + b.tekst;
-    return b.tekst;
+    return b ? b.tekst : '';
   }
 
   function waLink(dag) {

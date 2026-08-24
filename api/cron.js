@@ -57,8 +57,8 @@ export default async function handler(req, res) {
   }
 
   // het introblok hoort alleen bij het allereerste bericht dat verstuurd wordt
-  const tekst = CONFIG.intro && bericht.dag === CONFIG.startDag
-    ? CONFIG.intro + '\n\n' + bericht.tekst
+  const tekst = CONFIG.introTekst && bericht.dag === CONFIG.startDag
+    ? CONFIG.introTekst
     : bericht.tekst;
 
   // ---- links en titel ----------------------------------------------------

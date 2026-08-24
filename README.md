@@ -2,199 +2,261 @@
 
 Elke ochtend een pushbericht op jouw telefoon met het berichtje van vandaag voor Arie,
 plus een knop **Openen in WhatsApp** waarmee WhatsApp opent met de tekst er al in.
-Jij drukt op verzenden. Het komt dus van jouw eigen nummer.
+Jij drukt op verzenden, dus het komt van jouw eigen nummer.
 
-Aftellen naar **1 mei 2027**. 251 berichten, van dag 250 tot en met dag 0.
+Aftellen naar **1 mei 2027** — Dag van de Arbeid, en een zaterdag. 251 berichten, van
+dag 250 tot en met dag 0.
+
+> **Privéproject.** Dit hoort niet in de Olympia-omgeving. De repo is
+> `OsmanVardar/Arie-Pensioen` (privé) en het Vercel-project staat onder de persoonlijke
+> scope `ovardar-5825`. De Vercel-connector die aan Claude hangt bereikt alléén het
+> werkteam `olympia3` en wordt hier dus niet gebruikt.
+
+## Status
+
+| onderdeel | staat |
+|---|---|
+| 251 berichten | klaar, ruim 13.000 woorden |
+| site (3 pagina's) | klaar en getest |
+| dagelijkse push | klaar en drooggelopen |
+| telefoonnummer | **nog niet ingevuld** |
+| ploegenrooster | **nog niet ingevuld** |
+| 103 berichten met kantoorritme | **moeten herschreven worden** |
+| gepusht naar GitHub | **nog niet** |
+| gedeployed | **nog niet** |
 
 ## Hoe het in elkaar zit
 
 ```
-content/*.md      de 251 berichten - dit is het enige bestand dat je echt bewerkt
-config.json       naam, datum, telefoonnummer, geheim pad, ntfy-topic
-site/index.html   het sjabloon van de site
-scripts/build.mjs bouwt content + config om naar public/ en api/_data.js
-api/cron.js       de dagelijkse push (Vercel Cron -> ntfy -> jouw telefoon)
-public/           wat Vercel serveert. Wordt gegenereerd, niet met de hand bewerken
+content/*.md        de 251 berichten - dit bewerk je het meest
+content/_intro.md   introblok, alleen gebruikt als het aftellen later begint dan dag 250
+config.json         naam, datum, telefoonnummer, startdatum, geheim pad, ntfy-topic
+rooster.json        het ploegenrooster van Arie (mag leeg blijven)
+site/               index.html, berichten.html, rooster.html, stijl.css, app.js
+scripts/build.mjs   bouwt en controleert alles, vult public/ en api/_data.js
+scripts/audit.mjs   zoekt berichten die van een kantoorritme uitgaan
+scripts/testpush.mjs test de dagelijkse push zonder Vercel
+api/cron.js         de dagelijkse push (cron -> ntfy -> jouw telefoon)
+public/             wat Vercel serveert. Gegenereerd, niet met de hand bewerken
 ```
 
-De site is puur statisch: alle 251 berichten zitten in de pagina en de browser rekent
-zelf uit welke dag het is. Er is dus geen database en geen server nodig.
+De site is puur statisch: alle berichten zitten in de pagina en de browser rekent zelf uit
+welke dag het is. Geen database, geen server-rendering. De enige serverkant is de
+dagelijkse push.
 
-## Eenmalig instellen
+## Nog te doen
 
-### 1. Telefoonnummer invullen
+### 1. Telefoonnummer
 
-Zet in `config.json` het nummer van Arie in internationaal formaat, zonder `+` en zonder streepjes:
+In `config.json`, internationaal, zonder `+` en zonder streepjes:
 
 ```json
 "telefoon": "31612345678"
 ```
 
-Daarna opnieuw bouwen:
+Zolang hier `31600000000` staat waarschuwt de site erover en werkt de WhatsApp-knop niet.
 
-```bash
-npm run build
+### 2. Startdatum
+
+Belangrijk, en makkelijk over het hoofd te zien. Het bericht van dag 250 stelt zichzelf
+voor ("vanaf vandaag krijg je hier elke ochtend..."). Begin je later dan 24 augustus 2026,
+dan zou die introductie nooit verstuurd worden en valt Arie midden in een reeks.
+
+Zet daarom in `config.json` de dag waarop je het eerste bericht écht verstuurt:
+
+```json
+"startdatum": "2026-09-15"
 ```
 
-De build controleert ook meteen of alle 251 berichten aanwezig zijn en of elke datum
-klopt met het aantal dagen. Bij een fout stopt hij en zegt hij precies wat er mis is.
+Dan plakt de build het blok uit `content/_intro.md` boven dat eerste bericht, met de
+dubbele aanhef eraf. Laat je het leeg, dan begint het gewoon op dag 250 en gebeurt er
+niets bijzonders. De build waarschuwt als je het leeg laat terwijl die datum al voorbij is.
 
-### 2. ntfy op je telefoon
+### 3. Ploegenrooster
 
-`ntfy` is een gratis pushdienst zonder account.
+Arie werkt in ploegen, dus "nog 250 dagen" is niet het interessantste getal — **"nog 118
+diensten"** is dat wel. Vul `rooster.json` per datum in met `vroeg`, `middag`, `nacht` of
+`vrij`. Datums die je niet invult gelden als onbekend, niet als vrij, zodat er nooit iets
+op de site staat wat niet klopt.
 
-1. Installeer de app **ntfy** (Android: Play Store of F-Droid, iOS: App Store).
-2. Tik op **+** om een topic toe te voegen.
-3. Vul precies dit topic in (staat ook in `config.json`):
+Zodra er een rooster staat verschijnt automatisch:
 
-   ```
-   arie-pensioen-p4rsuww60x0ievwv
-   ```
+- een teller "diensten te gaan" naast de dagenteller
+- het aantal diensten in de titel van de pushmelding
+- een dienstbadge op het bericht van die dag
+- een roosterpagina met mijlpalen: laatste vroege dienst, laatste middagdienst,
+  **laatste nachtdienst**, laatste weekenddienst en laatste dienst ooit
 
-Dat is het. Wie het topic kent kan berichten sturen, dus houd hem voor jezelf.
+Blijft het rooster leeg, dan rekent alles gewoon in dagen en verdwijnen die onderdelen.
+Er gaat dus niets stuk.
 
-### 3. Op je eigen Vercel-account zetten
+Heb je het rooster als PDF, Excel of foto? Stuur het door, dan maak ik er een omzetter voor.
 
-> **Dit is een privéproject. Het hoort niet in de Olympia-omgeving.**
->
-> Het Vercel-account dat aan Claude gekoppeld is, kan maar één plek bereiken: het team
-> `Olympia` (slug `olympia3`, Pro, met SAML). Daar hoort dit niet. Onderstaande stappen
-> doe je daarom zelf, ingelogd met je **persoonlijke** mailadres. Er is geen GitHub bij
-> nodig: de Vercel CLI uploadt rechtstreeks vanuit deze map.
+### 4. De 103 berichten met een kantoorritme
 
-**a. Account.** Maak op [vercel.com/signup](https://vercel.com/signup) een account aan met
-je privé-mailadres. Kies het gratis **Hobby**-plan. Gebruik hier niet je Olympia-adres en
-niet "Continue with GitHub" als dat je werk-GitHub is.
-
-**b. CLI installeren en inloggen.**
+De berichten zijn geschreven vanuit een negen-tot-vijf-ritme. Bij ploegendienst klopt dat
+niet. Draai:
 
 ```bash
-npm install -g vercel
+node scripts/audit.mjs --lijst
 ```
 
-Was je hier al eens ingelogd met je werkaccount? Dan eerst uitloggen:
+Dat laat per bericht zien wat er misstaat. De stand nu:
+
+| categorie | berichten |
+|---|---|
+| weekdagritme ("het is vrijdag", "nog X maandagen") | 74 |
+| kantoorbaan (printer, Excel, Postvak In, functioneringsgesprek) | 34 |
+| wekker / uitslapen | 11 |
+| raakt minstens één werkritme-aanname | 103 |
+| ritme-neutraal, blijft staan | 148 |
+
+Van die 103 zijn er 33 waar de weekdag de kern van de grap is; die moeten helemaal
+opnieuw. Arie werkt in de productie, dus de kantoorgrappen worden ploegoverdracht,
+kantine, gehoorbescherming en de lijn die blijft draaien.
+
+## Naar GitHub en Vercel
+
+Er staat een commit klaar op branch `main`. De repo-identiteit is lokaal op
+`OsmanVardar@users.noreply.github.com` gezet, zodat je werkmailadres niet in de
+commits belandt. Wil je je echte privé-adres gebruiken:
 
 ```bash
-vercel logout
+git config user.email "jouwadres@voorbeeld.nl"
 ```
 
-Daarna inloggen met je privé-adres, en controleren wie je bent:
+### Pushen
+
+Dit moet vanuit een gewone terminal, want er komt een inlogvenster van GitHub bij:
 
 ```bash
-vercel login
+git push -u origin main
 ```
 
-```bash
-vercel whoami
-```
+Kies in dat venster het account **OsmanVardar**, niet een werkaccount. Lukt inloggen niet,
+maak dan op GitHub een Personal Access Token aan met `repo`-rechten en gebruik die als
+wachtwoord.
 
-Er moet nu je **persoonlijke** accountnaam staan. Staat er `olympia3`, dan ben je nog
-met het verkeerde account bezig — dan opnieuw `vercel logout`.
+### Vercel eraan hangen
 
-**c. Deployen.**
+Het project bestaat al: `vercel.com/ovardar-5825/arie-pensioen`. Ga daar naar
+**Settings → Git** en verbind de repo `OsmanVardar/Arie-Pensioen`. Daarna deployt elke
+push automatisch.
+
+Liever zonder GitHub? Dan vanuit een gewone terminal:
 
 ```bash
 npm run deploy
 ```
 
-Dat draait eerst de lokale build en dan `vercel --prod`. De eerste keer stelt de CLI een
-paar vragen:
+Dat bouwt eerst lokaal en doet dan `vercel --prod`. Let bij de vraag *"Which scope?"* op
+dat je **ovardar-5825** kiest en niet `olympia3`.
 
-| vraag | antwoord |
-|---|---|
-| Set up and deploy? | `yes` |
-| Which scope do you want to deploy to? | **je persoonlijke account — níet Olympia** |
-| Link to existing project? | `no` |
-| What's your project's name? | bijv. `aftellen` (staat straks in de URL) |
-| In which directory is your code located? | `./` |
-| Want to modify these settings? | `no` — `vercel.json` regelt het al |
+Vercel draait zelf geen build: `buildCommand` staat op een echo en `outputDirectory` op
+`public`. Wat je uploadt is dus precies wat je lokaal getest hebt. Daarom altijd
+`npm run deploy` gebruiken en niet los `vercel --prod`, anders zet je een oude build online.
 
-Die scope-vraag is de enige plek waar het mis kan gaan. Kies daar je eigen naam.
+### Het geheim instellen
 
-**d. Het geheim instellen.** Ga naar je project op vercel.com → **Settings → Environment
-Variables** en voeg toe:
+In Vercel bij **Settings → Environment Variables**:
 
 | naam | waarde | omgeving |
 |---|---|---|
 | `CRON_SECRET` | de waarde uit `.secrets-eenmalig.txt` | Production |
 
-Vercel stuurt die automatisch mee bij elke cron-run. Deploy daarna nog één keer
-(`npm run deploy`), want een nieuwe env-variabele geldt pas vanaf de volgende deploy.
+Deploy daarna nog één keer, want een nieuwe env-variabele geldt pas vanaf de volgende
+deploy. Zonder deze variabele werkt alles ook, maar dan kan iedereen die het adres kent
+`/api/cron` aanroepen. Kwaad kan dat niet — je krijgt hoogstens een dubbele push.
 
-Zonder deze variabele werkt alles ook, maar dan kan iedereen die het adres kent
-`/api/cron` aanroepen. Kwaad kan dat niet — je krijgt dan alleen een dubbele push — maar
-netter is netter.
+## ntfy op je telefoon
 
-**e. Optioneel: de URL vastzetten.** Vul na de eerste deploy `siteUrl` in `config.json` in
-met de definitieve URL inclusief het geheime pad, en draai `npm run deploy` opnieuw.
-Laat je het leeg, dan leidt de functie de URL zelf af uit het verzoek — dat werkt ook,
-maar dan verwijst de melding naar de deploy-URL van dat moment.
+`ntfy` is een gratis pushdienst zonder account.
 
-**Later iets wijzigen?** Altijd via `npm run deploy`. Dat bouwt de content opnieuw én
-deployt, zodat je nooit een oude versie online zet omdat je de build vergeten was.
+1. Installeer de app **ntfy** (Android: Play Store of F-Droid, iOS: App Store).
+2. Tik op **+** en voeg dit topic toe:
 
-**Wil je toch versiebeheer?** `git init` in deze map is genoeg voor een lokale historie
-van je 13.000 woorden; een remote heb je niet nodig. `.gitignore` staat al goed.
+   ```
+   arie-pensioen-p4rsuww60x0ievwv
+   ```
 
-### 4. Testen
+Wie het topic kent kan berichten naar je sturen, dus hou hem voor jezelf. Dit is de enige
+stap die niemand anders voor je kan doen — zonder dit komt de push nergens aan.
 
-Roep de functie één keer met de hand aan (vervang het geheim):
+## Testen
 
-```bash
-curl "https://JOUW-PROJECT.vercel.app/api/cron?secret=HET_GEHEIM"
-```
-
-Er hoort binnen een paar seconden een pushbericht op je telefoon te staan met twee
-knoppen. Lokaal, zonder iets te versturen:
+Zonder iets te versturen:
 
 ```bash
-node scripts/testpush.mjs
+npm test
 ```
 
-En om te zien hoe een specifieke dag eruitkomt:
+Een specifieke dag bekijken:
 
 ```bash
 node scripts/testpush.mjs --dag 42
 ```
 
-### 5. De site op je telefoon
+Echt versturen naar je telefoon:
 
-De site staat op een onraadbaar pad en wordt niet geïndexeerd:
+```bash
+node scripts/testpush.mjs --echt
+```
+
+Na de deploy, met de hand:
+
+```bash
+curl "https://JOUW-PROJECT.vercel.app/api/cron?secret=HET_GEHEIM"
+```
+
+Of eerst kijken wat er zou gebeuren zonder te versturen, door `&droog=1` toe te voegen.
+
+## De site
 
 ```
 https://JOUW-PROJECT.vercel.app/cgj8eewjdc7j2w3dwdltk2/
 ```
 
-Zet die op je beginscherm. Handig voor als je de push mist: je ziet het bericht van
-vandaag, kunt vooruitkijken, en alle 251 berichten nalezen.
+Onraadbaar pad, `noindex`, en `robots.txt` staat op alles weigeren. Zet hem op je
+beginscherm. Drie pagina's:
+
+- **Vandaag** — de teller, het bericht van vandaag, de WhatsApp-knop, en met de pijltjes
+  vooruit- en terugkijken
+- **Berichten** — alle berichten, zoekbaar, om na te lezen en te controleren
+- **Rooster** — de diensten en de mijlpalen, of een uitleg zolang het rooster leeg is
+
+Lokaal bekijken zonder deployen:
+
+```bash
+python -m http.server 4173 --directory public
+```
 
 ## Over het tijdstip
 
-De cron staat in `vercel.json` op `0 6 * * *`, oftewel 06:00 UTC. Dat is 08:00 in de
-zomertijd en 07:00 in de wintertijd.
+De cron staat in `vercel.json` op `0 6 * * *`, dus 06:00 UTC: 08:00 in de zomertijd en
+07:00 in de wintertijd.
 
-Op het gratis Hobby-plan van Vercel is de cron **ongeveer** op tijd: de run wordt
-binnen het uur na het ingestelde tijdstip gestart. Wil je het op de minuut precies,
-maak dan een gratis account op [cron-job.org](https://cron-job.org), laat die elke dag
+Op het gratis Hobby-plan is dat **ongeveer** op tijd — Vercel start de run binnen het uur
+na het ingestelde tijdstip. Voor een ochtendberichtje prima. Wil je het op de minuut,
+maak dan een gratis account op [cron-job.org](https://cron-job.org), laat die dagelijks
 `https://JOUW-PROJECT.vercel.app/api/cron?secret=HET_GEHEIM` aanroepen, en haal het
 `crons`-blok uit `vercel.json`.
 
 ## Berichten aanpassen
 
-Open het bestand in `content/` waar de dag in zit (de bestandsnamen zeggen welk bereik)
-en pas de tekst aan. De koptekst `### 117 | 2027-01-04` moet blijven staan zoals hij is.
-Daarna:
+Open het bestand in `content/` waar de dag in zit — de bestandsnamen geven het bereik — en
+pas de tekst aan. De kop `### 117 | 2027-01-04` moet blijven staan zoals hij is. Daarna:
 
 ```bash
 npm run build
 ```
 
-en opnieuw deployen. Verander je de aanhef of het aantal dagen in de tekst, dan let de
-build daar niet op: dat is jouw tekst, dus lees het zelf even na.
+De build controleert of alle 251 berichten er zijn en of elke datum klopt met het aantal
+dagen, en stopt met een uitleg als er iets misstaat. Op de tekst zelf let hij niet: als je
+"nog 117 dagen" in het bericht van dag 116 laat staan, klaagt niemand behalve Arie.
 
-## Als je een andere pensioendatum wilt
+## Andere pensioendatum?
 
-Pas `pensioendatum` in `config.json` aan. De build controleert dan alle 251 datums
-opnieuw en zegt per bericht welke datum er hoort te staan. Je moet die koppen dan met de
-hand bijwerken, en de feestdaggrappen (Sinterklaas, kerst, Koningsdag, 1 april) staan
-dan op de verkeerde dag.
+Pas `pensioendatum` in `config.json` aan. De build controleert dan alle datums opnieuw en
+zegt per bericht welke datum er hoort te staan. Die koppen moet je met de hand bijwerken,
+en de feestdaggrappen (Sinterklaas, kerst, carnaval, Pasen, 1 april, Koningsdag) staan dan
+op de verkeerde dag.
