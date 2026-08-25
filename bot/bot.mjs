@@ -49,8 +49,12 @@ const NTFY = process.env.NTFY_TOPIC || CONFIG.ntfyTopic || '';
 const TZ = CONFIG.tijdzone || 'Europe/Amsterdam';
 
 // Statuspaneel. Op Railway kun je geen QR uit een terminal scannen, dus die tonen we
-// op een webpagina. Draait alleen als er een PORT is (die zet Railway zelf).
-const PORT = Number(process.env.PORT || 0);
+// op een webpagina.
+//
+// Standaard 8080, want dat is de poort die je bij Railway opgeeft onder
+// Networking > Generate Service Domain. Zet Railway zelf een PORT, dan wint die.
+// Draai je dit thuis en wil je geen poort open, zet dan PANEL_UIT=1.
+const PORT = process.env.PANEL_UIT ? 0 : Number(process.env.PORT || 8080);
 const PANEL_TOKEN = process.env.PANEL_TOKEN || '';
 const PANEL_AAN = PORT > 0;
 const PANEL_URL = process.env.PANEL_URL || '';
