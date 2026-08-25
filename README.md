@@ -76,14 +76,24 @@ Dan plakt de build het blok uit `content/_intro.md` boven dat eerste bericht, me
 dubbele aanhef eraf. Laat je het leeg, dan begint het gewoon op dag 250 en gebeurt er
 niets bijzonders. De build waarschuwt als je het leeg laat terwijl die datum al voorbij is.
 
-### 3. Ploegenrooster
+### 3. Ploegenrooster — staat er al in
 
-Arie werkt in ploegen, dus "nog 250 dagen" is niet het interessantste getal — **"nog 118
-diensten"** is dat wel. Vul `rooster.json` per datum in met `vroeg`, `middag`, `nacht` of
-`vrij`. Datums die je niet invult gelden als onbekend, niet als vrij, zodat er nooit iets
-op de site staat wat niet klopt.
+Het rooster komt van `arie.juliep.de` en is al ingelezen. Verandert het, draai dan:
 
-Zodra er een rooster staat verschijnt automatisch:
+```bash
+node scripts/rooster-import.mjs
+```
+
+Dat haalt de pagina op, vertaalt de codes (`od` ochtend, `md` middag, `nd` nacht,
+`rv` roostervrij) en vult `rooster.json`. Per regel wordt de weekdag die de site noemt
+vergeleken met de echte weekdag van die datum; klopt dat niet, dan gaat die regel eruit.
+Een dienst op de pensioendatum zelf wordt op `vrij` gezet.
+
+In het aftelvenster staan 150 diensten: 50 ochtend, 50 middag, 50 nacht, en 101 dagen
+roostervrij. Draai na een nieuwe import altijd `npm run build` en `node scripts/nacheck.mjs`,
+want de aantallen in de teksten kloppen dan niet meer.
+
+Omdat er een rooster is, verschijnt automatisch:
 
 - een teller "diensten te gaan" naast de dagenteller
 - het aantal diensten in de titel van de pushmelding
@@ -91,10 +101,10 @@ Zodra er een rooster staat verschijnt automatisch:
 - een roosterpagina met mijlpalen: laatste vroege dienst, laatste middagdienst,
   **laatste nachtdienst**, laatste weekenddienst en laatste dienst ooit
 
-Blijft het rooster leeg, dan rekent alles gewoon in dagen en verdwijnen die onderdelen.
-Er gaat dus niets stuk.
+Zou het rooster ooit leeg zijn, dan rekent alles gewoon in dagen en verdwijnen die
+onderdelen. Er gaat dus niets stuk.
 
-Heb je het rooster als PDF, Excel of foto? Stuur het door, dan maak ik er een omzetter voor.
+
 
 ### 4. Nakijken
 
