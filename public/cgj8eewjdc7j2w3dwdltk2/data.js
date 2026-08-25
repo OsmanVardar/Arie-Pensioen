@@ -5,7 +5,7 @@ window.CONFIG = {
   "verstuurTijd": "08:00",
   "inhaalPauze": 45,
   "arieUrl": "https://arie-pensioen.vercel.app/arie",
-  "telefoon": "31627541332",
+  "telefoon": "31631068900",
   "startdatum": "2026-08-24",
   "startDag": 250,
   "hoogsteDag": 250,
