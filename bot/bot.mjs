@@ -13,9 +13,11 @@
 // de Vercel-cron gebruiken. Eén bron, geen tweede kopie die uit de pas kan lopen.
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { createServer } from 'node:http';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import qrcode from 'qrcode-terminal';
+import QRCode from 'qrcode';
 import pino from 'pino';
 import makeWASocket, {
   useMultiFileAuthState,
@@ -26,8 +28,12 @@ import makeWASocket, {
 import { CONFIG, BERICHTEN } from '../api/_data.js';
 
 const hier = dirname(fileURLToPath(import.meta.url));
-const AUTH = join(hier, 'auth');
-const STAND = join(hier, 'stand.json');
+
+// Op Railway of Fly.io hoort dit op een volume te staan dat een herbouw overleeft.
+// Zet DATA_DIR=/data en koppel daar een volume aan. Lokaal is de map bot/ prima.
+const DATA = process.env.DATA_DIR || hier;
+const AUTH = join(DATA, 'auth');
+const STAND = join(DATA, 'stand.json');
 
 const args = process.argv.slice(2);
 const DROOG = args.includes('--droog');
@@ -41,6 +47,13 @@ const MINUUT = Number(process.env.STUURMINUUT ?? 0);
 const NUMMER = (process.env.ARIE_TELEFOON || CONFIG.telefoon || '').replace(/[^0-9]/g, '');
 const NTFY = process.env.NTFY_TOPIC || CONFIG.ntfyTopic || '';
 const TZ = CONFIG.tijdzone || 'Europe/Amsterdam';
+
+// Statuspaneel. Op Railway kun je geen QR uit een terminal scannen, dus die tonen we
+// op een webpagina. Draait alleen als er een PORT is (die zet Railway zelf).
+const PORT = Number(process.env.PORT || 0);
+const PANEL_TOKEN = process.env.PANEL_TOKEN || '';
+const PANEL_AAN = PORT > 0;
+const PANEL_URL = process.env.PANEL_URL || '';
 
 // ---- hulpjes -------------------------------------------------------------
 
@@ -115,6 +128,69 @@ async function meldAanJezelf(tekst) {
   }
 }
 
+// ---- statuspaneel --------------------------------------------------------
+
+function startPaneel() {
+  createServer(async (req, res) => {
+    const url = new URL(req.url, 'http://x');
+
+    // Railway pingt de service; dat mag zonder sleutel een 200 opleveren.
+    if (url.pathname === '/gezond') {
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      res.end(verbonden ? 'verbonden' : 'niet verbonden');
+      return;
+    }
+
+    if (PANEL_TOKEN && url.searchParams.get('k') !== PANEL_TOKEN) {
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      res.end('Niets te zien hier.');
+      return;
+    }
+
+    const s = stand();
+    const u = berichtVoorVandaag();
+    let qrSvg = '';
+    if (laatsteQR) {
+      try { qrSvg = await QRCode.toString(laatsteQR, { type: 'svg', margin: 1, width: 280 }); }
+      catch { qrSvg = '<p>QR kon niet getekend worden, kijk in de logs.</p>'; }
+    }
+
+    const status = verbonden ? ['verbonden', '#0e6b4f']
+      : laatsteQR ? ['koppelen nodig', '#d99a1f']
+      : ['niet verbonden', '#d4573d'];
+
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'X-Robots-Tag': 'noindex' });
+    res.end(`<!doctype html><html lang="nl"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bot ${CONFIG.naam}</title>
+<style>
+body{font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  max-width:32rem;margin:0 auto;padding:2rem 1.25rem;background:#fdf8f0;color:#22201c}
+@media(prefers-color-scheme:dark){body{background:#14171b;color:#ece8e1}}
+.kaart{background:#fff;border:1px solid #e8dcc8;border-radius:16px;padding:1.25rem;margin:1rem 0}
+@media(prefers-color-scheme:dark){.kaart{background:#1e2329;border-color:#2f363e}}
+.bal{display:inline-block;width:.6rem;height:.6rem;border-radius:99px;background:${status[1]};margin-right:.4rem}
+h1{font-size:1.2rem} dt{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;opacity:.6;margin-top:.75rem}
+dd{margin:0;font-weight:600} pre{white-space:pre-wrap;font:inherit;opacity:.85}
+svg{max-width:100%;height:auto;background:#fff;border-radius:12px;padding:.5rem}
+</style>
+<h1><span class="bal"></span>Bot voor ${CONFIG.naam} &mdash; ${status[0]}</h1>
+${laatsteFout ? `<div class="kaart" style="border-color:#d4573d"><b>${laatsteFout}</b></div>` : ''}
+${qrSvg ? `<div class="kaart"><b>Scan met WhatsApp</b><p style="opacity:.7;font-size:.9rem">
+  Instellingen &rarr; Gekoppelde apparaten &rarr; Apparaat koppelen</p>${qrSvg}</div>` : ''}
+<div class="kaart"><dl>
+  <dt>vandaag</dt><dd>${u.dagen} dagen${u.bericht && typeof u.bericht.dienstenTeGaan === 'number' ? `, ${u.bericht.dienstenTeGaan} diensten` : ''}${u.bericht?.dienst ? ` &middot; ${u.bericht.dienst}` : ''}</dd>
+  <dt>laatst verstuurd</dt><dd>${s.laatstVerstuurd || 'nog niets'}</dd>
+  <dt>totaal verstuurd</dt><dd>${s.aantal || 0}</dd>
+  <dt>verstuurt om</dt><dd>${String(UUR).padStart(2, '0')}:${String(MINUUT).padStart(2, '0')} (${TZ})</dd>
+  <dt>ontvanger</dt><dd>+${NUMMER.slice(0, 4)}&hellip;${NUMMER.slice(-3)}</dd>
+</dl></div>
+<div class="kaart"><dt>bericht van vandaag</dt>
+<pre>${(u.tekst || u.reden || '').replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}</pre></div>
+</html>`);
+  }).listen(PORT, () => log(`statuspaneel op poort ${PORT}`));
+}
+
 // ---- controles vooraf ----------------------------------------------------
 
 if (!/^[0-9]{8,15}$/.test(NUMMER) || NUMMER === '31600000000') {
@@ -130,6 +206,8 @@ mkdirSync(AUTH, { recursive: true });
 
 let sok = null;
 let verbonden = false;
+let laatsteQR = null;
+let laatsteFout = null;
 
 async function verbind() {
   const { state, saveCreds } = await useMultiFileAuthState(AUTH);
@@ -149,13 +227,18 @@ async function verbind() {
     const { connection, lastDisconnect, qr } = u;
 
     if (qr) {
+      laatsteQR = qr;
       console.log('\nScan deze code met WhatsApp op je telefoon:');
-      console.log('   WhatsApp > Instellingen > Gekoppelde apparaten > Apparaat koppelen\n');
+      console.log('   WhatsApp > Instellingen > Gekoppelde apparaten > Apparaat koppelen');
+      if (PANEL_URL) console.log(`   Lukt scannen uit de logs niet? Open ${PANEL_URL}\n`);
+      else console.log('');
       qrcode.generate(qr, { small: true });
     }
 
     if (connection === 'open') {
       verbonden = true;
+      laatsteQR = null;
+      laatsteFout = null;
       log('verbonden met WhatsApp als', sok.user?.id?.split(':')[0] || 'onbekend');
       if (ALLEEN_KOPPELEN) {
         log('koppelen gelukt. De sessie staat in bot/auth/ en blijft geldig.');
@@ -171,9 +254,12 @@ async function verbind() {
       const uitgelogd = code === DisconnectReason.loggedOut;
 
       if (uitgelogd) {
-        console.error('\nWhatsApp heeft de koppeling verbroken.');
-        console.error('Verwijder de map bot/auth en draai opnieuw: npm run koppel\n');
-        process.exit(1);
+        laatsteFout = 'WhatsApp heeft de koppeling verbroken. Verwijder de auth-map en koppel opnieuw.';
+        console.error('\n' + laatsteFout + '\n');
+        // niet afsluiten als het statuspaneel draait: dan kun je opnieuw koppelen
+        // zonder eerst bij de server te moeten komen.
+        if (!PANEL_AAN) process.exit(1);
+        return;
       }
       log('verbinding weg (code ' + code + '), opnieuw proberen over 10 seconden');
       setTimeout(verbind, 10000);
@@ -248,6 +334,8 @@ if (DROOG) {
   await probeerTeVersturen(true);
   process.exit(0);
 }
+
+if (PANEL_AAN) startPaneel();
 
 await verbind();
 

@@ -1,0 +1,16 @@
+# nooit in de image
+.git
+.secrets-eenmalig.txt
+.claude
+.vercel
+bot/auth
+bot/stand.json
+**/node_modules
+
+# heeft de bot niet nodig: dat is allemaal voor de site
+public
+site
+content
+scripts
+vercel.json
+.vercelignore

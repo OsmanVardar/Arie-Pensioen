@@ -17,16 +17,77 @@ je toch al appt, en niets wat op massaverzending lijkt. Dat is precies wat deze 
 
 ## Waar draait dit
 
-Op iets wat aan blijft staan:
+Op iets wat aan blijft staan. **Railway** is de bedoelde plek; de `Dockerfile` en
+`railway.json` in de hoofdmap zijn daarvoor. Het kan ook op Fly.io, een VPS of een
+Raspberry Pi thuis.
 
-- **Raspberry Pi** thuis. Gratis, en een Pi 3 of nieuwer is ruim voldoende.
-- **Kleine VPS**, bijvoorbeeld Hetzner CX22 voor een paar euro per maand.
-- **Een pc die je nooit uitzet.** Kan ook, maar als hij 's nachts uit gaat mist Arie
-  zijn berichtje.
+**Niet op Vercel.** Daar draaien functies die na hoogstens een minuut weer stoppen, en
+deze bot moet een WhatsApp-sessie in leven houden. Meer betalen lost dat niet op, want
+Vercel verkoopt geen blijvend proces. Daarom staat `bot/` ook in `.vercelignore`.
 
-**Niet op Vercel.** Daar draaien functies die na een paar seconden weer stoppen, en
-deze bot moet een WhatsApp-sessie in leven houden. Daarom staat `bot/` ook in
-`.vercelignore`.
+## Op Railway zetten
+
+Zorg eerst dat het telefoonnummer erin staat, want de bot leest `api/_data.js`:
+
+```bash
+npm run build && git add -A && git commit -m "telefoonnummer" && git push
+```
+
+Dan op [railway.com](https://railway.com):
+
+**1.** New Project → **Deploy from GitHub repo** → kies `OsmanVardar/Arie-Pensioen`.
+Railway ziet de `Dockerfile` vanzelf; je hoeft niets te kiezen.
+
+**2. Voeg een Volume toe.** Dit is de stap die je niet mag overslaan. In de service:
+**Settings → Volumes → Add Volume**, mount path:
+
+```
+/data
+```
+
+Zonder dit staat de WhatsApp-sessie in het geheugen van de container, en die is weg bij
+elke nieuwe deploy. Dan moet je elke keer opnieuw koppelen.
+
+**3. Zet de omgevingsvariabelen.** Onder **Variables**:
+
+| naam | waarde |
+|---|---|
+| `PANEL_TOKEN` | de waarde uit `.secrets-eenmalig.txt` |
+| `STUURUUR` | optioneel, standaard `8` |
+| `STUURMINUUT` | optioneel, standaard `0` |
+
+`DATA_DIR` staat al op `/data` in de Dockerfile, en `PORT` zet Railway zelf.
+
+**4. Maak een adres aan.** **Settings → Networking → Generate Domain**. Je krijgt iets als
+`arie-pensioen-production.up.railway.app`.
+
+**5. Koppelen.** Open in je browser:
+
+```
+https://JOUW-ADRES.up.railway.app/?k=HET_PANEL_TOKEN
+```
+
+Daar staat een QR-code. Scan die met **WhatsApp → Instellingen → Gekoppelde apparaten →
+Apparaat koppelen**. De pagina slaat daarna om naar "verbonden" en de sessie staat op het
+volume.
+
+Dat is alles. Vanaf dan verstuurt hij elke ochtend om 08:00 vanzelf.
+
+## Het statuspaneel
+
+Datzelfde adres is ook je controlepaneel. Je ziet er:
+
+- of de bot verbonden is
+- welke dag en hoeveel diensten het vandaag is
+- wanneer er voor het laatst iets verstuurd is, en hoeveel in totaal
+- de volledige tekst die vandaag de deur uit gaat
+
+Zonder `?k=` krijg je een 404, dus deel dat adres niet. Er is één uitzondering:
+`/gezond` is altijd bereikbaar zonder sleutel, want Railway gebruikt dat om te kijken of
+de service nog leeft.
+
+Raakt de koppeling ooit kwijt, dan verschijnt daar vanzelf weer een QR-code. Je hoeft dan
+niet bij de server te kunnen: gewoon de pagina openen en opnieuw scannen.
 
 ## Installeren
 
