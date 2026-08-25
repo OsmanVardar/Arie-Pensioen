@@ -256,6 +256,32 @@ Lokaal bekijken zonder deployen:
 python -m http.server 4173 --directory public
 ```
 
+## De pagina voor Arie zelf
+
+```
+https://arie-pensioen.vercel.app/arie
+```
+
+Deze mag je hem geven, en de rest van de familie ook. Hij ziet er het aftellen, het
+bericht van vandaag en alles wat al langs is gekomen.
+
+**Geef hem nooit het geheime pad van jouw eigen site.** Daar staan alle 251 berichten in,
+tot en met 1 mei.
+
+Twee dingen zijn met opzet zo gebouwd:
+
+- **De pagina wordt op de server gemaakt**, door `api/arie.js`, en is geen statisch
+  bestand. In een statische pagina zouden alle toekomstige berichten in de broncode
+  staan. Wat hier niet in de HTML komt, heeft de bezoeker ook nooit gehad: de pagina is
+  ruim 2 kB in plaats van de 80 kB die alle berichten samen zijn.
+- **Het bericht van vandaag verschijnt pas nadat het via WhatsApp is verstuurd**, met een
+  kwartier speling op de tijd uit `verstuurTijd` in `config.json`. Anders zou hij het hier
+  eerder lezen dan dat hij het krijgt. Tot die tijd staat er alleen "het berichtje van
+  vandaag komt om 08:00".
+
+`verstuurTijd` wordt ook door de bot gebruikt, zodat site en bot niet uit de pas kunnen
+lopen. Verander je hem, dan schuiven ze allebei mee.
+
 ## Over het tijdstip
 
 De cron staat in `vercel.json` op `0 6 * * *`, dus 06:00 UTC: 08:00 in de zomertijd en

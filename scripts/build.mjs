@@ -216,6 +216,7 @@ const gedeeld = {
   naam: config.naam,
   pensioendatum: config.pensioendatum,
   tijdzone: config.tijdzone,
+  verstuurTijd: config.verstuurTijd || '08:00',
   telefoon: config.telefoon,
   startdatum,
   startDag,
@@ -255,6 +256,12 @@ for (const map of readdirSync(join(root, 'public'), { withFileTypes: true })) {
 schrijf(join(root, 'public', 'index.html'),
   '<!doctype html><meta charset="utf-8"><title>404</title><p style="font:16px system-ui;padding:2rem">Niets te zien hier.</p>\n');
 schrijf(join(root, 'public', 'robots.txt'), 'User-agent: *\nDisallow: /\n');
+
+// Arie's eigen pagina wordt door api/arie.js op de server gemaakt. Die heeft stijl en
+// icoon nodig op een vast, openbaar pad: het geheime pad van jouw site mag daar niet
+// in voorkomen, want dan kan hij vanaf zijn pagina bij alle 251 berichten.
+schrijf(join(root, 'public', 'arie.css'), readFileSync(join(root, 'site', 'stijl.css'), 'utf8'));
+schrijf(join(root, 'public', 'arie-icoon.svg'), readFileSync(join(root, 'site', 'icoon.svg'), 'utf8'));
 
 // ---- 7. verslag ---------------------------------------------------------
 

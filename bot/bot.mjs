@@ -40,9 +40,11 @@ const DROOG = args.includes('--droog');
 const NU = args.includes('--nu');
 const ALLEEN_KOPPELEN = args.includes('--koppel');
 
-// tijdstip van verzenden, standaard 08:00 Nederlandse tijd
-const UUR = Number(process.env.STUURUUR ?? 8);
-const MINUUT = Number(process.env.STUURMINUUT ?? 0);
+// Tijdstip van verzenden. Staat in config.json, zodat de site precies weet vanaf
+// wanneer het bericht van vandaag getoond mag worden. Env-variabelen winnen.
+const [CFG_UUR, CFG_MIN] = String(CONFIG.verstuurTijd || '08:00').split(':').map(Number);
+const UUR = Number(process.env.STUURUUR ?? CFG_UUR);
+const MINUUT = Number(process.env.STUURMINUUT ?? CFG_MIN);
 
 const NUMMER = (process.env.ARIE_TELEFOON || CONFIG.telefoon || '').replace(/[^0-9]/g, '');
 const NTFY = process.env.NTFY_TOPIC || CONFIG.ntfyTopic || '';

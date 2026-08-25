@@ -2,6 +2,7 @@ export const CONFIG = {
   "naam": "Arie",
   "pensioendatum": "2027-05-01",
   "tijdzone": "Europe/Amsterdam",
+  "verstuurTijd": "08:00",
   "telefoon": "31627541332",
   "startdatum": "2026-08-25",
   "startDag": 249,
