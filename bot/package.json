@@ -1,0 +1,17 @@
+{
+  "name": "arie-pensioen-bot",
+  "private": true,
+  "type": "module",
+  "description": "Verstuurt het dagelijkse berichtje automatisch via WhatsApp. Draait op een Pi of VPS, niet op Vercel.",
+  "scripts": {
+    "start": "node bot.mjs",
+    "koppel": "node bot.mjs --koppel",
+    "droog": "node bot.mjs --nu --droog",
+    "nu": "node bot.mjs --nu"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.9",
+    "qrcode-terminal": "^0.12.0",
+    "pino": "^9.5.0"
+  }
+}

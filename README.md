@@ -41,6 +41,7 @@ scripts/nacheck.mjs controleert de aantallen in de teksten tegen de werkelijkhei
 scripts/rooster-import.mjs leest het ploegenrooster van arie.juliep.de
 scripts/testpush.mjs test de dagelijkse push zonder Vercel
 api/cron.js         de dagelijkse push (cron -> ntfy -> jouw telefoon)
+bot/                WhatsApp-bot die automatisch naar Arie stuurt (Pi of VPS)
 public/             wat Vercel serveert. Gegenereerd, niet met de hand bewerken
 ```
 

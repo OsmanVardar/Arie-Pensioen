@@ -3,3 +3,6 @@
 .claude/
 node_modules/
 .vercel/
+
+# de bot draait niet op Vercel
+bot/
