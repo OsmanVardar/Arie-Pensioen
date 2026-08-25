@@ -217,6 +217,8 @@ const gedeeld = {
   pensioendatum: config.pensioendatum,
   tijdzone: config.tijdzone,
   verstuurTijd: config.verstuurTijd || '08:00',
+  inhaalPauze: Number(config.inhaalPauze ?? 45),
+  arieUrl: config.arieUrl || '',
   telefoon: config.telefoon,
   startdatum,
   startDag,

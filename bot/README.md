@@ -73,6 +73,46 @@ volume.
 
 Dat is alles. Vanaf dan verstuurt hij elke ochtend om 08:00 vanzelf.
 
+## Inhalen, en nooit dubbel
+
+De bot werkt niet met "vandaag al iets verstuurd, ja of nee". Hij houdt in `stand.json`
+bij **welke dagen** er de deur uit zijn, en verstuurt bij elke controle alles wat had
+moeten gaan en nog niet weg is.
+
+Daarmee zijn drie dingen in één regel geregeld:
+
+- **Te laat begonnen.** Start je op dag 245, dan gaan 250 tot en met 245 er alsnog uit.
+- **Bot lag eruit.** Drie dagen storing betekent drie berichten die alsnog volgen.
+- **Gewone dag.** Dan is de wachtrij precies één bericht lang.
+
+Berichten die te laat komen krijgen een regeltje erboven: _Gisteren:_, _Eergisteren:_ of
+de datum. Anders krijgt hij twee appjes achter elkaar die allebei over "vandaag" gaan.
+
+Tussen ingehaalde berichten zit standaard **45 seconden**. Een reeks in één seconde ziet
+er voor WhatsApp uit als een bot, en dat is precies wat je niet wil. Aanpassen via
+`inhaalPauze` in `config.json` of `INHAAL_PAUZE` als omgevingsvariabele.
+
+De stand wordt **per bericht** weggeschreven. Valt de verbinding halverwege een
+inhaalslag weg, dan gaat er niets dubbel als hij terugkomt.
+
+### Van testnummer naar Arie
+
+In `stand.json` staat naar wie er verstuurd is. Verandert dat nummer, dan begint de reeks
+voor de nieuwe ontvanger **weer bij het begin**. Je kunt dus eerst rustig naar je eigen
+nummer testen, en zodra je Arie's nummer invult krijgt hij netjes dag 250, 249 en zo
+verder — ook al heb je die zelf al gezien.
+
+In de logs zie je dat terug:
+
+```
+ontvanger is gewijzigd van 316... naar 316...
+de reeks begint voor dit nummer opnieuw; 2 eerdere berichten worden niet meegerekend
+```
+
+Onder het allereerste bericht dat naar een nieuwe ontvanger gaat komt eenmalig de link
+naar de website. Niet bij elk bericht, want dan zet WhatsApp er elke dag een linkvoorbeeld
+onder.
+
 ## Het statuspaneel
 
 Datzelfde adres is ook je controlepaneel. Je ziet er:

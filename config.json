@@ -3,10 +3,12 @@
   "pensioendatum": "2027-05-01",
   "tijdzone": "Europe/Amsterdam",
   "verstuurTijd": "08:00",
+  "inhaalPauze": 45,
   "roosterUrl": "https://www.arie.juliep.de/index.php?a",
   "telefoon": "31627541332",
-  "startdatum": "2026-08-25",
+  "startdatum": "2026-08-24",
   "slug": "cgj8eewjdc7j2w3dwdltk2",
+  "arieUrl": "https://arie-pensioen.vercel.app/arie",
   "ntfyTopic": "arie-pensioen-p4rsuww60x0ievwv",
   "siteUrl": ""
 }

@@ -61,6 +61,12 @@ const PANEL_TOKEN = process.env.PANEL_TOKEN || '';
 const PANEL_AAN = PORT > 0;
 const PANEL_URL = process.env.PANEL_URL || '';
 
+// Seconden tussen twee ingehaalde berichten.
+const PAUZE = Number(process.env.INHAAL_PAUZE ?? CONFIG.inhaalPauze ?? 45);
+
+// Voorkomt dat een tweede tik van de klok midden in een inhaalslag begint.
+let bezig = false;
+
 // ---- hulpjes -------------------------------------------------------------
 
 let laatsteQR = null;
@@ -89,14 +95,56 @@ function dagenTot(iso) {
   );
 }
 
+const LEEG = { ontvanger: null, verstuurd: [], laatstVerstuurd: null, aantal: 0 };
+let wisselGemeld = false;
+
+// De stand houdt bij welke dagen er al de deur uit zijn. Niet alleen "laatst
+// verstuurd op datum X", want dan kan een inhaalslag niet en zou een dag die
+// gemist is nooit meer goedgemaakt worden.
+//
+// De ontvanger staat erbij. Verandert die - bijvoorbeeld van een testnummer naar
+// het echte nummer van Arie - dan begint de reeks voor die nieuwe ontvanger
+// gewoon weer bij het begin. Anders zou Arie de eerste berichten nooit krijgen
+// omdat ze "al verstuurd" zijn naar iemand anders.
 function stand() {
-  if (!existsSync(STAND)) return { laatstVerstuurd: null, aantal: 0 };
-  try { return JSON.parse(readFileSync(STAND, 'utf8')); }
-  catch { return { laatstVerstuurd: null, aantal: 0 }; }
+  if (!existsSync(STAND)) return { ...LEEG, ontvanger: NUMMER };
+  let s;
+  try { s = JSON.parse(readFileSync(STAND, 'utf8')); }
+  catch { return { ...LEEG, ontvanger: NUMMER }; }
+
+  if (!Array.isArray(s.verstuurd)) s.verstuurd = [];
+
+  if (s.ontvanger && s.ontvanger !== NUMMER) {
+    if (!wisselGemeld) {
+      wisselGemeld = true;
+      log(`ontvanger is gewijzigd van ${s.ontvanger} naar ${NUMMER}`);
+      log(`de reeks begint voor dit nummer opnieuw; ${s.verstuurd.length} eerdere berichten worden niet meegerekend`);
+    }
+    return { ...LEEG, ontvanger: NUMMER, vorigeOntvanger: s.ontvanger };
+  }
+  return { ...s, ontvanger: NUMMER };
 }
 
 function bewaarStand(s) {
   writeFileSync(STAND, JSON.stringify(s, null, 2) + '\n', 'utf8');
+}
+
+// Alle dagen die verstuurd hadden moeten zijn en dat nog niet zijn, oudste eerst.
+// Het bericht van vandaag zit er alleen bij als de verzendtijd geweest is.
+function wachtrij(negeerTijd = false) {
+  const s = stand();
+  const gedaan = new Set(s.verstuurd);
+  const dagenNu = dagenTot(vandaagISO());
+  const opTijd = negeerTijd || nuInNL() >= UUR * 60 + MINUUT;
+
+  const rij = [];
+  for (let d = CONFIG.startDag; d >= Math.max(dagenNu, 0); d--) {
+    if (gedaan.has(d)) continue;
+    if (d === dagenNu && !opTijd) continue;   // vandaag mag pas na de verzendtijd
+    if (d < dagenNu) continue;                // nooit vooruit
+    rij.push(d);
+  }
+  return rij;
 }
 
 // Welk bericht hoort er vandaag te gaan? Geeft null als er niets moet.
@@ -158,6 +206,7 @@ function startPaneel() {
 
     const s = stand();
     const u = berichtVoorVandaag();
+    const rij = wachtrij();
     let qrSvg = '';
     if (laatsteQR) {
       try { qrSvg = await QRCode.toString(laatsteQR, { type: 'svg', margin: 1, width: 280 }); }
@@ -189,6 +238,8 @@ ${qrSvg ? `<div class="kaart"><b>Scan met WhatsApp</b><p style="opacity:.7;font-
   Instellingen &rarr; Gekoppelde apparaten &rarr; Apparaat koppelen</p>${qrSvg}</div>` : ''}
 <div class="kaart"><dl>
   <dt>vandaag</dt><dd>${u.dagen} dagen${u.bericht && typeof u.bericht.dienstenTeGaan === 'number' ? `, ${u.bericht.dienstenTeGaan} diensten` : ''}${u.bericht?.dienst ? ` &middot; ${u.bericht.dienst}` : ''}</dd>
+  <dt>klaar om te versturen</dt><dd>${rij.length
+    ? `${rij.length} bericht${rij.length === 1 ? '' : 'en'} &mdash; dag ${rij.join(', ')}` : 'niets, alles is bij'}</dd>
   <dt>laatst verstuurd</dt><dd>${s.laatstVerstuurd || 'nog niets'}</dd>
   <dt>totaal verstuurd</dt><dd>${s.aantal || 0}</dd>
   <dt>verstuurt om</dt><dd>${String(UUR).padStart(2, '0')}:${String(MINUUT).padStart(2, '0')} (${TZ})</dd>
@@ -283,52 +334,100 @@ async function verbind() {
 
 // ---- versturen -----------------------------------------------------------
 
+// Voor een bericht dat te laat komt: benoemen wanneer het had moeten gaan.
+// Anders krijgt hij twee appjes achter elkaar die allebei over "vandaag" gaan.
+function wanneerLabel(dag, dagenNu, datum) {
+  const verschil = dag - dagenNu;
+  if (verschil <= 0) return null;
+  if (verschil === 1) return 'Gisteren';
+  if (verschil === 2) return 'Eergisteren';
+  const d = new Date(datum + 'T12:00:00Z');
+  const wd = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
+  const mn = ['januari', 'februari', 'maart', 'april', 'mei', 'juni',
+    'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
+  return `${wd[d.getUTCDay()]} ${d.getUTCDate()} ${mn[d.getUTCMonth()]}`;
+}
+
+function tekstVoorDag(dag, dagenNu, eersteOoit) {
+  const b = BERICHTEN.find((x) => x.dag === dag);
+  if (!b) return null;
+
+  let tekst = CONFIG.introTekst && b.dag === CONFIG.startDag ? CONFIG.introTekst : b.tekst;
+
+  const label = wanneerLabel(dag, dagenNu, b.datum);
+  if (label) tekst = `_${label}:_\n\n` + tekst;
+
+  // De link naar de site komt alleen onder het allereerste bericht. Bij elk
+  // bericht zou WhatsApp er ook elke dag een linkvoorbeeld bij zetten.
+  if (eersteOoit && CONFIG.arieUrl) {
+    tekst += `\n\nAlles teruglezen kan hier: ${CONFIG.arieUrl}`;
+  }
+  return { bericht: b, tekst };
+}
+
 async function probeerTeVersturen(negeerTijd = false) {
-  const s = stand();
-  const vandaag = vandaagISO();
-
-  // een droogloop mag altijd, ook als er vandaag al iets verstuurd is
-  if (!DROOG && s.laatstVerstuurd === vandaag) {
-    if (negeerTijd) log('vandaag is er al een bericht verstuurd, ik doe niets');
-    return;
-  }
-
-  if (!DROOG && !negeerTijd && nuInNL() < UUR * 60 + MINUUT) return;
-
-  const uitkomst = berichtVoorVandaag();
-  if (!uitkomst.tekst) {
-    log('niets te versturen:', uitkomst.reden);
-    // toch vastleggen, anders blijft hij het de hele dag proberen
-    bewaarStand({ ...s, laatstVerstuurd: vandaag, laatsteReden: uitkomst.reden });
-    return;
-  }
-
-  const kop = `dag ${uitkomst.dagen}` +
-    (typeof uitkomst.bericht.dienstenTeGaan === 'number'
-      ? `, nog ${uitkomst.bericht.dienstenTeGaan} diensten` : '');
+  const dagenNu = dagenTot(vandaagISO());
+  const rij = wachtrij(negeerTijd || DROOG);
 
   if (DROOG) {
-    console.log(`\n--- DROOGLOOP: dit zou nu naar +${NUMMER} gaan (${kop}) ---\n`);
-    console.log(uitkomst.tekst);
+    const s = stand();
+    console.log(`\n--- DROOGLOOP: ${rij.length} bericht(en) zouden naar +${NUMMER} gaan ---`);
+    for (const dag of rij) {
+      const o = tekstVoorDag(dag, dagenNu, s.verstuurd.length === 0 && dag === rij[0]);
+      console.log(`\n=== dag ${dag} ===\n`);
+      console.log(o.tekst);
+    }
     console.log('\n--- er is niets verstuurd ---\n');
     setTimeout(() => process.exit(0), 500);
     return;
   }
 
+  if (!rij.length) return;
   if (!verbonden) { log('nog niet verbonden, ik wacht'); return; }
+  if (bezig) return;
+  bezig = true;
+
+  log(`${rij.length} bericht(en) te versturen: dag ${rij.join(', ')}`);
 
   try {
-    await sok.sendMessage(NUMMER + '@s.whatsapp.net', { text: uitkomst.tekst });
-    log(`verstuurd naar ${CONFIG.naam} (${kop})`);
-    bewaarStand({
-      laatstVerstuurd: vandaag,
-      laatsteDag: uitkomst.dagen,
-      aantal: (s.aantal || 0) + 1,
-    });
-    await meldAanJezelf(`${kop}\n\n${uitkomst.tekst.split('\n').slice(0, 4).join('\n')}...`);
+    for (let i = 0; i < rij.length; i++) {
+      const dag = rij[i];
+      const s = stand();
+      if (s.verstuurd.includes(dag)) continue;
+
+      const o = tekstVoorDag(dag, dagenNu, s.verstuurd.length === 0);
+      if (!o) { log(`geen bericht voor dag ${dag}, overgeslagen`); continue; }
+
+      await sok.sendMessage(NUMMER + '@s.whatsapp.net', { text: o.tekst });
+
+      const kop = `dag ${dag}` + (typeof o.bericht.dienstenTeGaan === 'number'
+        ? `, nog ${o.bericht.dienstenTeGaan} diensten` : '');
+      log(`verstuurd (${kop})`);
+
+      // Direct wegschrijven, per bericht. Valt de verbinding halverwege een
+      // inhaalslag weg, dan gaat er niets dubbel als hij terugkomt.
+      bewaarStand({
+        ontvanger: NUMMER,
+        verstuurd: [...s.verstuurd, dag],
+        laatstVerstuurd: vandaagISO(),
+        laatsteDag: dag,
+        aantal: (s.aantal || 0) + 1,
+      });
+
+      await meldAanJezelf(`${kop}\n\n${o.tekst.split('\n').filter(Boolean).slice(0, 3).join('\n')}...`);
+
+      // Even wachten tussen inhaalberichten. Een reeks in één seconde ziet er
+      // voor WhatsApp uit als een bot, en dat is precies wat we niet willen.
+      if (i < rij.length - 1) {
+        log(`wacht ${PAUZE} seconden voor het volgende`);
+        await new Promise((r) => setTimeout(r, PAUZE * 1000));
+      }
+    }
   } catch (e) {
     log('VERSTUREN MISLUKT:', e.message);
-    log('ik probeer het over een uur opnieuw, de stand blijft onaangeroerd');
+    log('de stand blijft staan op wat wel gelukt is; de rest volgt bij de volgende poging');
+  } finally {
+    bezig = false;
   }
 }
 

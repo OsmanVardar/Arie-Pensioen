@@ -9,6 +9,17 @@
 # Wie is Arie
 
 ## Werk
+**Oktober 1989** begonnen via het uitzendbureau bij **Akzo**.
+**1 februari 1990** in vaste dienst.
+Het bedrijf heette daarna **AkzoNobel**, en na de overname **Nouryon**. Drie namen, nooit
+van baan gewisseld.
+
+Op 1 mei 2027 is dat 37 jaar en 7 maanden sinds de eerste dag, en 37 jaar en 3 maanden
+in vaste dienst.
+
+Verwerkt op: dag 211 (37 jaar sinds de start), dag 173 (Berlijnse Muur, hij werkte er toen
+een maand), dag 89 (1 februari, precies 37 jaar vast) en dag 0.
+
 Productie, vijfploegendienst. Rooster komt van arie.juliep.de.
 Cyclus van tien dagen: 2x ochtend, 2x middag, 2x nacht, 4x roostervrij.
 In het aftelvenster: 150 diensten, 101 dagen roostervrij.
@@ -61,9 +72,9 @@ Let op: dit zijn er drie, en ze worden makkelijk door elkaar gehaald.
 Hij noemde het alle drie genadig. Droog en kort houden, geen details.
 
 ## Niet doen
-- **Nooit beweren hoe lang hij er al werkt.** Dat weten we niet. Geen "bijna vijftig
-  jaar", geen "tachtigduizend uur", geen aantal jaren huwelijk. Schrijf "al die jaren",
-  "je hele werkende leven" of "meer diensten dan iemand kan tellen".
+- **Geen aantal jaren huwelijk noemen.** Dat weten we niet.
+- De dienstjaren kloppen wel en mogen genoemd worden, maar reken ze na tegen de datums
+  hierboven voor je een getal opschrijft.
 
 ## Eten
 - Zalm met kerst viel vorig jaar verkeerd. Kerstavond en eerste kerstdag draait hij
