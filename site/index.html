@@ -2,10 +2,15 @@
 <html lang="nl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#12211c">
+<meta name="theme-color" content="#0e6b4f" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14171b" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Arie">
 <title>Vandaag</title>
+<link rel="icon" href="icoon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="stijl.css">
 </head>
 <body>
@@ -14,11 +19,18 @@
   <div id="waarschuwing" class="waarschuwing" hidden></div>
 
   <header class="hero">
-    <div class="label" id="label">nog te gaan</div>
-    <div class="getal" id="getal">–</div>
-    <div class="onder" id="onder"></div>
-    <div class="balk"><i id="balk" style="width:0"></i></div>
-    <div class="balk-tekst" id="balktekst"></div>
+    <div class="ring-wrap">
+      <svg class="ring" viewBox="0 0 200 200" aria-hidden="true">
+        <circle class="ring-bg" cx="100" cy="100" r="88"></circle>
+        <circle class="ring-fg" cx="100" cy="100" r="88" id="ring"></circle>
+      </svg>
+      <div class="ring-inhoud">
+        <div class="getal" id="getal">–</div>
+        <div class="getal-label" id="getallabel">dagen</div>
+      </div>
+    </div>
+    <div class="subtitel" id="subtitel"></div>
+    <div class="mijlpaal" id="mijlpaal" hidden></div>
     <div class="cijfers" id="cijfers"></div>
   </header>
 
@@ -51,6 +63,7 @@
   var A = window.Aftellen, cfg = A.cfg;
   var el = function (id) { return document.getElementById(id); };
   var actief = A.actueleDag();
+  var OMTREK = 2 * Math.PI * 88;
 
   A.navTekenen('index.html');
 
@@ -66,18 +79,18 @@
   function cijfersTekenen(b) {
     var vakken = [];
     if (cfg.heeftRooster && b.dienstenTeGaan !== undefined) {
-      vakken.push([b.dienstenTeGaan, b.dienstenTeGaan === 1 ? 'dienst te gaan' : 'diensten te gaan']);
+      vakken.push([b.dienstenTeGaan, b.dienstenTeGaan === 1 ? 'dienst' : 'diensten']);
     }
-    vakken.push([Math.ceil(actief / 7), 'weken']);
+    vakken.push([Math.ceil(actief / 7), actief <= 7 ? 'week' : 'weken']);
     vakken.push([A.aantalVerstuurd(), 'verstuurd']);
 
     el('cijfers').innerHTML = '';
     vakken.forEach(function (v) {
       var d = document.createElement('div');
       d.className = 'cijfer';
-      var b2 = document.createElement('b'); b2.textContent = v[0];
+      var n = document.createElement('b'); n.textContent = v[0];
       var s = document.createElement('span'); s.textContent = v[1];
-      d.appendChild(b2); d.appendChild(s);
+      d.appendChild(n); d.appendChild(s);
       el('cijfers').appendChild(d);
     });
   }
@@ -87,15 +100,29 @@
     if (!b) return;
     var isVandaag = actief === A.dagVandaag;
 
-    el('label').textContent = isVandaag ? 'nog te gaan' : 'vooruitkijken naar';
     el('getal').textContent = actief;
-    el('onder').textContent = actief === 0
-      ? cfg.naam + ' is met pensioen'
-      : (actief === 1 ? 'dag tot 1 mei 2027' : 'dagen tot 1 mei 2027');
+    el('getallabel').textContent = actief === 0 ? 'klaar' : (actief === 1 ? 'dag' : 'dagen');
 
     var gedaan = cfg.startDag - actief;
-    el('balk').style.width = (100 * gedaan / Math.max(cfg.startDag, 1)).toFixed(1) + '%';
-    el('balktekst').textContent = gedaan + ' van ' + cfg.startDag + ' achter de rug';
+    var deel = gedaan / Math.max(cfg.startDag, 1);
+    el('ring').style.strokeDasharray = OMTREK;
+    el('ring').style.strokeDashoffset = OMTREK * (1 - deel);
+
+    el('subtitel').innerHTML = actief === 0
+      ? '<b>' + cfg.naam + ' is met pensioen</b>'
+      : (isVandaag ? 'tot 1 mei 2027 &middot; <b>' + gedaan + '</b> van ' + cfg.startDag + ' achter de rug'
+                   : 'vooruitkijken naar ' + A.langeDatum(b.datum));
+
+    // mijlpaalbanner
+    var mp = (b.mijlpalen || []);
+    if (mp.length) {
+      el('mijlpaal').hidden = false;
+      el('mijlpaal').innerHTML = mp.map(function (m) {
+        return (A.MIJLPAALNAMEN[m] || m).toUpperCase();
+      }).join(' &middot; ') + '<small>' + A.langeDatum(b.datum) + '</small>';
+    } else {
+      el('mijlpaal').hidden = true;
+    }
 
     cijfersTekenen(b);
 
@@ -107,15 +134,9 @@
     if (b.dienst) {
       var badge = document.createElement('span');
       badge.className = 'dienst ' + b.dienst;
-      badge.textContent = b.dienst;
+      badge.textContent = b.dienst === 'vroeg' ? 'ochtend' : b.dienst;
       el('kaartkop').appendChild(badge);
     }
-    (b.mijlpalen || []).forEach(function (m) {
-      var mp = document.createElement('span');
-      mp.className = 'dienst nacht';
-      mp.textContent = A.MIJLPAALNAMEN[m] || m;
-      el('kaartkop').appendChild(mp);
-    });
 
     el('bericht').textContent = A.tekstVoor(actief);
     el('wa').href = A.waLink(actief);
@@ -127,6 +148,27 @@
     el('vorige').disabled = actief >= cfg.startDag;
     el('volgende').disabled = actief <= 0;
     el('vandaag').hidden = isVandaag;
+
+    document.body.classList.toggle('feest', actief === 0);
+    if (actief === 0) confetti();
+  }
+
+  function confetti() {
+    if (document.querySelector('.confetti')) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var laag = document.createElement('div');
+    laag.className = 'confetti';
+    var kleuren = ['#d4573d', '#d99a1f', '#0e6b4f', '#8257b8', '#25d366'];
+    for (var i = 0; i < 60; i++) {
+      var s = document.createElement('i');
+      s.style.left = (Math.random() * 100) + '%';
+      s.style.background = kleuren[i % kleuren.length];
+      s.style.animationDuration = (2.5 + Math.random() * 2.5) + 's';
+      s.style.animationDelay = (Math.random() * 2) + 's';
+      laag.appendChild(s);
+    }
+    document.body.appendChild(laag);
+    setTimeout(function () { laag.remove(); }, 9000);
   }
 
   el('vorige').onclick = function () { if (actief < cfg.startDag) { actief++; tekenen(); } };
@@ -150,7 +192,6 @@
     setTimeout(tekenen, 400);
   });
 
-  // met de pijltjes door de dagen
   document.addEventListener('keydown', function (e) {
     if (e.key === 'ArrowLeft') el('vorige').click();
     if (e.key === 'ArrowRight') el('volgende').click();

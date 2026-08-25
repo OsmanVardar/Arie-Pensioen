@@ -1,0 +1,11 @@
+{
+  "name": "Arie's aftelling",
+  "short_name": "Arie",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#fdf8f0",
+  "theme_color": "#0e6b4f",
+  "icons": [
+    { "src": "icoon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
