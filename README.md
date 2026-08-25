@@ -19,9 +19,10 @@ dag 250 tot en met dag 0.
 | 251 berichten | klaar, ruim 13.000 woorden |
 | site (3 pagina's) | klaar en getest |
 | dagelijkse push | klaar en drooggelopen |
+| ploegenrooster | ingelezen, 150 diensten |
+| berichten herschreven voor ploegendienst | ja, alle 251 |
 | telefoonnummer | **nog niet ingevuld** |
-| ploegenrooster | **nog niet ingevuld** |
-| 103 berichten met kantoorritme | **moeten herschreven worden** |
+| startdatum | **nog niet gekozen** |
 | gepusht naar GitHub | ja, `OsmanVardar/Arie-Pensioen` (privé) |
 | gedeployed | ja, https://arie-pensioen.vercel.app |
 | `CRON_SECRET` in Vercel | **nog niet ingesteld** |
@@ -36,6 +37,8 @@ rooster.json        het ploegenrooster van Arie (mag leeg blijven)
 site/               index.html, berichten.html, rooster.html, stijl.css, app.js
 scripts/build.mjs   bouwt en controleert alles, vult public/ en api/_data.js
 scripts/audit.mjs   zoekt berichten die van een kantoorritme uitgaan
+scripts/nacheck.mjs controleert de aantallen in de teksten tegen de werkelijkheid
+scripts/rooster-import.mjs leest het ploegenrooster van arie.juliep.de
 scripts/testpush.mjs test de dagelijkse push zonder Vercel
 api/cron.js         de dagelijkse push (cron -> ntfy -> jouw telefoon)
 public/             wat Vercel serveert. Gegenereerd, niet met de hand bewerken
@@ -93,28 +96,29 @@ Er gaat dus niets stuk.
 
 Heb je het rooster als PDF, Excel of foto? Stuur het door, dan maak ik er een omzetter voor.
 
-### 4. De 103 berichten met een kantoorritme
+### 4. Nakijken
 
-De berichten zijn geschreven vanuit een negen-tot-vijf-ritme. Bij ploegendienst klopt dat
-niet. Draai:
+Alle 251 berichten zijn herschreven voor ploegendienst: elk bericht noemt dagen én
+diensten, de weekdaggrappen zijn ploegendienstgrappen geworden en de kantoorverwijzingen
+zijn vervangen door de lijn, de ploegoverdracht en de kantine.
+
+Twee scripts houden dat op orde:
+
+```bash
+node scripts/nacheck.mjs
+```
+
+Dat haalt uit elke tekst de genoemde aantallen dagen en diensten en legt ze naast de
+werkelijkheid. Staat er in het bericht van dag 116 "nog 117 dagen", dan zie je dat hier
+en niet pas als Arie het leest. Draai het na élke wijziging aan de content.
 
 ```bash
 node scripts/audit.mjs --lijst
 ```
 
-Dat laat per bericht zien wat er misstaat. De stand nu:
-
-| categorie | berichten |
-|---|---|
-| weekdagritme ("het is vrijdag", "nog X maandagen") | 74 |
-| kantoorbaan (printer, Excel, Postvak In, functioneringsgesprek) | 34 |
-| wekker / uitslapen | 11 |
-| raakt minstens één werkritme-aanname | 103 |
-| ritme-neutraal, blijft staan | 148 |
-
-Van die 103 zijn er 33 waar de weekdag de kern van de grap is; die moeten helemaal
-opnieuw. Arie werkt in de productie, dus de kantoorgrappen worden ploegoverdracht,
-kantine, gehoorbescherming en de lijn die blijft draaien.
+Dat zoekt naar aannames over een negen-tot-vijf-ritme. Wat er nu nog uitkomt is bewust:
+zes berichten gaan juist over het contrast tussen zijn ritme en dat van de rest, en
+woorden als "overdracht" horen gewoon bij ploegendienst.
 
 ## Naar GitHub en Vercel
 

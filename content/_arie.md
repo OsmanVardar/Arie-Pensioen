@@ -34,6 +34,7 @@ Osman is de schoonzoon en de bedenker van dit hele aftelproject.
 - Later ook in Susteren gewoond. Roermond is de stad in de buurt.
 - Vader zat bij de snelwegpolitie en reed daar Porsches. Daarom kwam het gezin in Grathem.
 - Broer woont in Australië.
+- Zijn vrouw heet **Monique**.
 
 ## Gewoonten en eigenaardigheden
 - **Fietst nooit.** Bij mooi weer de motor, anders de auto.
@@ -58,6 +59,11 @@ Let op: dit zijn er drie, en ze worden makkelijk door elkaar gehaald.
 3. **Vogeltje** - met een schep.
 
 Hij noemde het alle drie genadig. Droog en kort houden, geen details.
+
+## Niet doen
+- **Nooit beweren hoe lang hij er al werkt.** Dat weten we niet. Geen "bijna vijftig
+  jaar", geen "tachtigduizend uur", geen aantal jaren huwelijk. Schrijf "al die jaren",
+  "je hele werkende leven" of "meer diensten dan iemand kan tellen".
 
 ## Eten
 - Zalm met kerst viel vorig jaar verkeerd. Kerstavond en eerste kerstdag draait hij
