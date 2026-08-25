@@ -57,6 +57,9 @@ const PANEL_URL = process.env.PANEL_URL || '';
 
 // ---- hulpjes -------------------------------------------------------------
 
+let laatsteQR = null;
+let laatsteFout = null;
+
 const log = (...a) => console.log(new Date().toISOString().slice(0, 19).replace('T', ' '), ...a);
 
 function vandaagISO() {
@@ -193,11 +196,18 @@ ${qrSvg ? `<div class="kaart"><b>Scan met WhatsApp</b><p style="opacity:.7;font-
 
 // ---- controles vooraf ----------------------------------------------------
 
-if (!/^[0-9]{8,15}$/.test(NUMMER) || NUMMER === '31600000000') {
-  console.error(`\nHet telefoonnummer klopt niet: "${NUMMER}"`);
-  console.error('Zet het echte nummer in config.json (of in de omgevingsvariabele ARIE_TELEFOON)');
-  console.error('en draai daarna in de hoofdmap: npm run build\n');
-  process.exit(1);
+const NUMMER_OK = /^[0-9]{8,15}$/.test(NUMMER) && NUMMER !== '31600000000';
+
+if (!NUMMER_OK) {
+  laatsteFout = `Het telefoonnummer klopt niet: "${NUMMER || 'leeg'}". ` +
+    `Zet ARIE_TELEFOON bij de omgevingsvariabelen (internationaal, zonder + en zonder 0, ` +
+    `dus 06-12345678 wordt 31612345678). Of zet het in config.json en draai npm run build.`;
+  console.error('\n' + laatsteFout + '\n');
+
+  // Draait er een statuspaneel, dan blijven we leven en tonen we de fout daar.
+  // Afsluiten zou op een gehoste omgeving alleen een herstartlus opleveren waarin
+  // niemand kan zien wat er mis is.
+  if (!PANEL_AAN) process.exit(1);
 }
 
 mkdirSync(AUTH, { recursive: true });
@@ -206,8 +216,6 @@ mkdirSync(AUTH, { recursive: true });
 
 let sok = null;
 let verbonden = false;
-let laatsteQR = null;
-let laatsteFout = null;
 
 async function verbind() {
   const { state, saveCreds } = await useMultiFileAuthState(AUTH);
@@ -337,9 +345,14 @@ if (DROOG) {
 
 if (PANEL_AAN) startPaneel();
 
-await verbind();
+if (NUMMER_OK) {
+  await verbind();
+} else {
+  log('geen geldig telefoonnummer, ik verbind niet met WhatsApp');
+  log('zet ARIE_TELEFOON goed en herstart; de fout staat ook op het statuspaneel');
+}
 
-if (!ALLEEN_KOPPELEN && !NU) {
+if (NUMMER_OK && !ALLEEN_KOPPELEN && !NU) {
   // elke minuut kijken of het tijd is. Goedkoop, en overleeft een herstart netjes.
   setInterval(() => { probeerTeVersturen().catch((e) => log('fout:', e.message)); }, 60000);
   log(`wachtend tot ${String(UUR).padStart(2, '0')}:${String(MINUUT).padStart(2, '0')}`);
