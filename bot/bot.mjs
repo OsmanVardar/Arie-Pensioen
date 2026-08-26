@@ -109,6 +109,10 @@ for (const kanaal of ['log', 'error', 'warn']) {
 
 const log = (...a) => console.log(new Date().toISOString().slice(0, 19).replace('T', ' '), ...a);
 
+// Alles wat uit config of berichten komt gaat door het statuspaneel heen, dus ontsnappen.
+const esc = (s) => String(s).replace(/[<>&"]/g, (c) =>
+  ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
+
 // Elk uur even melden hoeveel ruis er onderdrukt is, zodat je weet dat het leeft
 // en niet denkt dat de bot stil is gevallen.
 setInterval(() => {
@@ -240,6 +244,24 @@ async function meldAanJezelf(tekst) {
   log('ntfy-melding definitief niet gelukt; het bericht naar ' + CONFIG.naam + ' is wel verstuurd');
 }
 
+// Stuurt dezelfde tekst naar de meelezers en zet er een ntfy-melding bij.
+//
+// Dit gebeurt altijd ná het wegschrijven van de stand: mislukt een kopie, dan mag dat
+// er nooit voor zorgen dat het bericht naar de hoofdontvanger opnieuw wordt verstuurd.
+async function stuurKopieen(tekst, kop) {
+  for (const mee of MEELEZERS) {
+    if (!verbonden) { log(`geen verbinding, kopie naar ${mee} overgeslagen`); continue; }
+    try {
+      await new Promise((r) => setTimeout(r, 2000));
+      await sok.sendMessage(mee + '@s.whatsapp.net', { text: tekst });
+      log(`kopie verstuurd naar ${mee}`);
+    } catch (e) {
+      log(`kopie naar ${mee} mislukt (${CONFIG.naam} heeft het bericht wel): ${e.message}`);
+    }
+  }
+  await meldAanJezelf(`${kop}\n\n${tekst}`);
+}
+
 // ---- statuspaneel --------------------------------------------------------
 
 // Alle verstuurde dagen als tabelrijen, meest recent eerst. We gaan uit van de lijst
@@ -286,6 +308,24 @@ function startPaneel() {
         bewaarStand({ ...st, verstuurd: st.verstuurd.filter((d) => d !== dag) });
         log(`dag ${dag} weer in de wachtrij gezet op verzoek via het paneel`);
         probeerTeVersturen(true).catch((e) => log('opnieuw versturen mislukt:', e.message));
+      }
+      res.writeHead(302, { Location: '/?k=' + encodeURIComponent(PANEL_TOKEN) });
+      res.end();
+      return;
+    }
+
+    // Alleen een kopie naar de meelezers, zonder de hoofdontvanger en zonder de
+    // stand aan te raken. Voor als je wil zien wat er verstuurd is zonder dat
+    // Arie hetzelfde bericht een tweede keer krijgt.
+    if (url.pathname === '/kopie' && req.method === 'POST') {
+      const dag = Number(url.searchParams.get('dag'));
+      const b = BERICHTEN.find((x) => x.dag === dag);
+      if (b) {
+        const tekst = CONFIG.introTekst && b.dag === CONFIG.startDag ? CONFIG.introTekst : b.tekst;
+        const kop = `dag ${dag}` + (typeof b.dienstenTeGaan === 'number'
+          ? `, nog ${b.dienstenTeGaan} diensten` : '') + ' (kopie, niet opnieuw naar ' + CONFIG.naam + ')';
+        log(`kopie van dag ${dag} gevraagd via het paneel`);
+        stuurKopieen(tekst, kop).catch((e) => log('kopie mislukt:', e.message));
       }
       res.writeHead(302, { Location: '/?k=' + encodeURIComponent(PANEL_TOKEN) });
       res.end();
@@ -341,7 +381,10 @@ ${rijenVerstuurd(s).map((h) => `<tr>
   <td style="padding:.3rem .5rem .3rem 0;font-weight:700;white-space:nowrap">dag ${h.dag}</td>
   <td style="padding:.3rem .5rem;opacity:.6;white-space:nowrap;font-size:.8rem">${h.wanneer ? h.wanneer + ' UTC' : 'tijdstip niet vastgelegd'}</td>
   <td style="padding:.3rem 0;opacity:.85">${String(h.eersteRegel).replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}</td>
-  <td style="padding:.3rem 0 .3rem .5rem;text-align:right"><form method="post" action="/opnieuw?k=${encodeURIComponent(PANEL_TOKEN)}&amp;dag=${h.dag}" style="margin:0"><button type="submit" style="font:inherit;font-size:.75rem;padding:.2rem .5rem;border:1px solid currentColor;border-radius:6px;background:none;color:inherit;opacity:.6;cursor:pointer">opnieuw</button></form></td>
+  <td style="padding:.3rem 0 .3rem .5rem;text-align:right;white-space:nowrap">
+    ${MEELEZERS.length ? `<form method="post" action="/kopie?k=${encodeURIComponent(PANEL_TOKEN)}&amp;dag=${h.dag}" style="display:inline;margin:0"><button type="submit" title="Alleen naar de meelezers, ${esc(CONFIG.naam)} krijgt niets" style="font:inherit;font-size:.75rem;padding:.2rem .5rem;border:1px solid currentColor;border-radius:6px;background:none;color:inherit;opacity:.6;cursor:pointer">alleen ik</button></form>` : ''}
+    <form method="post" action="/opnieuw?k=${encodeURIComponent(PANEL_TOKEN)}&amp;dag=${h.dag}" style="display:inline;margin:0 0 0 .3rem"><button type="submit" title="Opnieuw naar ${esc(CONFIG.naam)} en de meelezers" style="font:inherit;font-size:.75rem;padding:.2rem .5rem;border:1px solid currentColor;border-radius:6px;background:none;color:inherit;opacity:.6;cursor:pointer">opnieuw</button></form>
+  </td>
 </tr>`).join('')}
 </table></div>` : ''}
 <div class="kaart"><dt>bericht van vandaag</dt>
@@ -523,7 +566,7 @@ async function probeerTeVersturen(negeerTijd = false) {
         historie: [regel, ...(s.historie || [])].slice(0, 10),
       });
 
-      await meldAanJezelf(`${kop}\n\n${o.tekst.split('\n').filter(Boolean).slice(0, 3).join('\n')}...`);
+      await stuurKopieen(o.tekst, kop);
 
       // Even wachten tussen inhaalberichten. Een reeks in één seconde ziet er
       // voor WhatsApp uit als een bot, en dat is precies wat we niet willen.
