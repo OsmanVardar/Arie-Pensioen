@@ -229,6 +229,33 @@ Arie"), dus je blijft zien dat het goed gegaan is.
 Haal daarom het `crons`-blok uit `vercel.json` en deploy opnieuw, of zet de cron uit in
 Vercel bij **Settings → Cron Jobs**.
 
+## "Wachten op dit bericht" op je eigen telefoon
+
+Dit is **geen storing** en je hoeft er niets aan te doen. Vastgesteld op 26 augustus 2026.
+
+In je eigen WhatsApp blijven de verstuurde berichten staan als een grijs blok met
+*"Wachten op dit bericht. Dit kan even duren."* De tekst zie je niet, wel een vinkje.
+
+De bot is een gekoppeld apparaat van jouw account. Jouw telefoon krijgt van elk bericht
+dat dat apparaat verstuurt een eigen versleutelde kopie, en die kan hij niet openmaken.
+Daarom een placeholder in plaats van tekst. In de logs staat dezelfde storing de andere
+kant op: `Bad MAC` en `Failed to decrypt message with any known session`, na tientallen
+herverbindingen per dag met code 428. Dat is inherent aan een onofficiële koppeling en er
+is van buitenaf niets aan te doen. Baileys 6.7.24 is al de nieuwste stabiele versie.
+
+**Het versturen zelf gaat goed.** Bewezen op twee manieren: Arie heeft dag 250 en 249
+gelezen en erop geantwoord, en een kopie naar een ander nummer kwam leesbaar aan.
+
+Om diezelfde reden heeft een meelezer op het nummer waaraan de bot gekoppeld is geen zin:
+dat loopt tegen precies dezelfde fout aan. Zet er een ánder nummer in.
+
+Wil je zien wat er verstuurd is, gebruik dan een van deze drie, die allemaal niet van
+WhatsApp-synchronisatie afhangen:
+
+- de tabel **werkelijk verstuurd** op het statuspaneel
+- de **ntfy-melding**, met de volledige tekst
+- de pagina voor Arie zelf op `/arie`
+
 ## Als het misgaat
 
 **Verbinding valt weg.** Dat gebeurt; hij probeert vanzelf elke tien seconden opnieuw.
