@@ -78,7 +78,33 @@ let bezig = false;
 let laatsteQR = null;
 let laatsteFout = null;
 
+// De versleutelingslaag (libsignal) schrijft rechtstreeks naar console.log en
+// braakt bij elke sessiewissel tientallen regels met sleutelmateriaal uit. Daardoor
+// zijn de logs niet meer te lezen en verdwijnen de regels die je wel nodig hebt.
+// Die ruis filteren we eruit; de meldingen die iets betekenen blijven staan.
+const RUIS = [
+  /^Closing session: SessionEntry/, /^\s*(_chains|indexInfo|currentRatchet|pendingPreKey|ephemeralKeyPair)\s*[:{]/,
+  /^\s*(baseKey|baseKeyType|closed|used|created|remoteIdentityKey|registrationId|rootKey|privKey|pubKey|lastRemoteEphemeralKey|previousCounter|chainKey|signedKeyId|preKeyId|messageKeys)\s*:/,
+  /^\s*'?B[A-Za-z0-9+/=]{20,}'?\s*:/, /^\s*[}\],]+,?\s*$/,
+  /^\s*at (Object\.verifyMAC|SessionCipher|async |_asyncQueueExecutor)/,
+];
+let ruisTeller = 0;
+for (const kanaal of ['log', 'error', 'warn']) {
+  const echt = console[kanaal].bind(console);
+  console[kanaal] = (...a) => {
+    const eerste = typeof a[0] === 'string' ? a[0] : '';
+    if (RUIS.some((r) => r.test(eerste))) { ruisTeller++; return; }
+    echt(...a);
+  };
+}
+
 const log = (...a) => console.log(new Date().toISOString().slice(0, 19).replace('T', ' '), ...a);
+
+// Elk uur even melden hoeveel ruis er onderdrukt is, zodat je weet dat het leeft
+// en niet denkt dat de bot stil is gevallen.
+setInterval(() => {
+  if (ruisTeller) { log(`(${ruisTeller} regels versleutelingsruis onderdrukt in het afgelopen uur)`); ruisTeller = 0; }
+}, 3600000);
 
 function vandaagISO() {
   return new Intl.DateTimeFormat('en-CA', {
@@ -224,6 +250,21 @@ function startPaneel() {
       return;
     }
 
+    // Een dag opnieuw versturen. Handig als WhatsApp een bericht heeft laten
+    // vallen: haal hem uit de lijst met verstuurde dagen en de wachtrij pakt hem op.
+    if (url.pathname === '/opnieuw' && req.method === 'POST') {
+      const dag = Number(url.searchParams.get('dag'));
+      const st = stand();
+      if (Number.isInteger(dag) && st.verstuurd.includes(dag)) {
+        bewaarStand({ ...st, verstuurd: st.verstuurd.filter((d) => d !== dag) });
+        log(`dag ${dag} weer in de wachtrij gezet op verzoek via het paneel`);
+        probeerTeVersturen(true).catch((e) => log('opnieuw versturen mislukt:', e.message));
+      }
+      res.writeHead(302, { Location: '/?k=' + encodeURIComponent(PANEL_TOKEN) });
+      res.end();
+      return;
+    }
+
     const s = stand();
     const u = berichtVoorVandaag();
     const rij = wachtrij();
@@ -266,11 +307,13 @@ ${qrSvg ? `<div class="kaart"><b>Scan met WhatsApp</b><p style="opacity:.7;font-
   <dt>ontvanger</dt><dd>+${NUMMER.slice(0, 4)}&hellip;${NUMMER.slice(-3)}</dd>
 </dl></div>
 ${(s.historie || []).length ? `<div class="kaart"><dt>werkelijk verstuurd</dt>
+<p style="font-size:.8rem;opacity:.6;margin:.3rem 0 0">Kwam een bericht niet aan? Dan zet de knop hem terug in de wachtrij.</p>
 <table style="width:100%;border-collapse:collapse;font-size:.9rem;margin-top:.5rem">
 ${s.historie.map((h) => `<tr>
   <td style="padding:.3rem .5rem .3rem 0;font-weight:700;white-space:nowrap">dag ${h.dag}</td>
   <td style="padding:.3rem .5rem;opacity:.6;white-space:nowrap;font-size:.8rem">${h.wanneer} UTC</td>
   <td style="padding:.3rem 0;opacity:.85">${String(h.eersteRegel).replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}</td>
+  <td style="padding:.3rem 0 .3rem .5rem;text-align:right"><form method="post" action="/opnieuw?k=${encodeURIComponent(PANEL_TOKEN)}&amp;dag=${h.dag}" style="margin:0"><button type="submit" style="font:inherit;font-size:.75rem;padding:.2rem .5rem;border:1px solid currentColor;border-radius:6px;background:none;color:inherit;opacity:.6;cursor:pointer">opnieuw</button></form></td>
 </tr>`).join('')}
 </table></div>` : ''}
 <div class="kaart"><dt>bericht van vandaag</dt>
