@@ -233,6 +233,24 @@ async function meldAanJezelf(tekst) {
 
 // ---- statuspaneel --------------------------------------------------------
 
+// Alle verstuurde dagen als tabelrijen, meest recent eerst. We gaan uit van de lijst
+// verstuurde dagen en niet van het logboek: berichten die door een oudere versie zijn
+// verstuurd staan niet in dat logboek, en juist die wil je opnieuw kunnen sturen.
+function rijenVerstuurd(s) {
+  const perDag = new Map((s.historie || []).map((h) => [h.dag, h]));
+  return [...(s.verstuurd || [])]
+    .sort((a, b) => a - b)          // laagste dagnummer is het meest recente bericht
+    .map((dag) => {
+      const h = perDag.get(dag);
+      const b = BERICHTEN.find((x) => x.dag === dag);
+      return {
+        dag,
+        wanneer: h?.wanneer || null,
+        eersteRegel: h?.eersteRegel || (b ? b.tekst.split(/\r?\n/).filter(Boolean)[1] : ''),
+      };
+    });
+}
+
 function startPaneel() {
   createServer(async (req, res) => {
     const url = new URL(req.url, 'http://x');
@@ -306,12 +324,12 @@ ${qrSvg ? `<div class="kaart"><b>Scan met WhatsApp</b><p style="opacity:.7;font-
   <dt>verstuurt om</dt><dd>${String(UUR).padStart(2, '0')}:${String(MINUUT).padStart(2, '0')} (${TZ})</dd>
   <dt>ontvanger</dt><dd>+${NUMMER.slice(0, 4)}&hellip;${NUMMER.slice(-3)}</dd>
 </dl></div>
-${(s.historie || []).length ? `<div class="kaart"><dt>werkelijk verstuurd</dt>
+${(s.verstuurd || []).length ? `<div class="kaart"><dt>werkelijk verstuurd</dt>
 <p style="font-size:.8rem;opacity:.6;margin:.3rem 0 0">Kwam een bericht niet aan? Dan zet de knop hem terug in de wachtrij.</p>
 <table style="width:100%;border-collapse:collapse;font-size:.9rem;margin-top:.5rem">
-${s.historie.map((h) => `<tr>
+${rijenVerstuurd(s).map((h) => `<tr>
   <td style="padding:.3rem .5rem .3rem 0;font-weight:700;white-space:nowrap">dag ${h.dag}</td>
-  <td style="padding:.3rem .5rem;opacity:.6;white-space:nowrap;font-size:.8rem">${h.wanneer} UTC</td>
+  <td style="padding:.3rem .5rem;opacity:.6;white-space:nowrap;font-size:.8rem">${h.wanneer ? h.wanneer + ' UTC' : 'tijdstip niet vastgelegd'}</td>
   <td style="padding:.3rem 0;opacity:.85">${String(h.eersteRegel).replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}</td>
   <td style="padding:.3rem 0 .3rem .5rem;text-align:right"><form method="post" action="/opnieuw?k=${encodeURIComponent(PANEL_TOKEN)}&amp;dag=${h.dag}" style="margin:0"><button type="submit" style="font:inherit;font-size:.75rem;padding:.2rem .5rem;border:1px solid currentColor;border-radius:6px;background:none;color:inherit;opacity:.6;cursor:pointer">opnieuw</button></form></td>
 </tr>`).join('')}
