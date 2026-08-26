@@ -220,6 +220,7 @@ const gedeeld = {
   inhaalPauze: Number(config.inhaalPauze ?? 45),
   arieUrl: config.arieUrl || '',
   telefoon: config.telefoon,
+  meelezers: Array.isArray(config.meelezers) ? config.meelezers : [],
   startdatum,
   startDag,
   hoogsteDag,

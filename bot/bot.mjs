@@ -53,6 +53,15 @@ const UUR = Number(process.env.STUURUUR ?? CFG_UUR);
 const MINUUT = Number(process.env.STUURMINUUT ?? CFG_MIN);
 
 const NUMMER = (process.env.ARIE_TELEFOON || CONFIG.telefoon || '').replace(/[^0-9]/g, '');
+
+// Nummers die een kopie meekrijgen. Dit zijn NIET de hoofdontvanger: die staat in de
+// stand en bepaalt of de reeks opnieuw begint. Een meelezer toevoegen of weghalen
+// mag Arie zijn reeks niet opnieuw laten beginnen.
+const MEELEZERS = (process.env.MEELEZERS
+  ? process.env.MEELEZERS.split(',')
+  : (CONFIG.meelezers || []))
+  .map((n) => String(n).replace(/[^0-9]/g, ''))
+  .filter((n) => /^[0-9]{8,15}$/.test(n) && n !== NUMMER);
 const NTFY = process.env.NTFY_TOPIC || CONFIG.ntfyTopic || '';
 const TZ = CONFIG.tijdzone || 'Europe/Amsterdam';
 
@@ -323,6 +332,7 @@ ${qrSvg ? `<div class="kaart"><b>Scan met WhatsApp</b><p style="opacity:.7;font-
   <dt>totaal verstuurd</dt><dd>${s.aantal || 0}</dd>
   <dt>verstuurt om</dt><dd>${String(UUR).padStart(2, '0')}:${String(MINUUT).padStart(2, '0')} (${TZ})</dd>
   <dt>ontvanger</dt><dd>+${NUMMER.slice(0, 4)}&hellip;${NUMMER.slice(-3)}</dd>
+  ${MEELEZERS.length ? `<dt>kopie ook naar</dt><dd>${MEELEZERS.map((n) => '+' + n.slice(0, 4) + '&hellip;' + n.slice(-3)).join(', ')}</dd>` : ''}
 </dl></div>
 ${(s.verstuurd || []).length ? `<div class="kaart"><dt>werkelijk verstuurd</dt>
 <p style="font-size:.8rem;opacity:.6;margin:.3rem 0 0">Kwam een bericht niet aan? Dan zet de knop hem terug in de wachtrij.</p>
@@ -534,6 +544,7 @@ async function probeerTeVersturen(negeerTijd = false) {
 
 console.log(`\nArie's aftelling - WhatsApp-bot`);
 console.log(`  ontvanger   +${NUMMER}`);
+if (MEELEZERS.length) console.log(`  meelezers   ${MEELEZERS.map((n) => '+' + n).join(', ')}`);
 console.log(`  tijdstip    ${String(UUR).padStart(2, '0')}:${String(MINUUT).padStart(2, '0')} (${TZ})`);
 console.log(`  vandaag     dag ${dagenTot(vandaagISO())}`);
 console.log(`  stand       ${stand().laatstVerstuurd ? 'laatst verstuurd op ' + stand().laatstVerstuurd : 'nog niets verstuurd'}`);
