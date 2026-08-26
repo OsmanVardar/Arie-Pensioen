@@ -14,6 +14,7 @@
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { createServer } from 'node:http';
+import { setDefaultResultOrder } from 'node:dns';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import qrcode from 'qrcode-terminal';
@@ -26,6 +27,11 @@ import makeWASocket, {
 } from '@whiskeysockets/baileys';
 
 import { CONFIG, BERICHTEN } from '../api/_data.js';
+
+// Node kiest sinds versie 17 vaak eerst een IPv6-adres. Heeft de omgeving geen
+// werkende IPv6-route - op Railway staat Outbound IPv6 standaard uit - dan mislukt
+// zo'n verbinding met een kale "fetch failed". Dat trof precies de ntfy-meldingen.
+setDefaultResultOrder('ipv4first');
 
 const hier = dirname(fileURLToPath(import.meta.url));
 
@@ -168,21 +174,35 @@ function berichtVoorVandaag() {
 
 async function meldAanJezelf(tekst) {
   if (!NTFY) return;
-  try {
-    await fetch('https://ntfy.sh/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        topic: NTFY,
-        title: 'Verstuurd naar ' + CONFIG.naam,
-        message: tekst,
-        tags: ['white_check_mark'],
-        priority: 2,
-      }),
-    });
-  } catch (e) {
-    log('ntfy-melding mislukt (niet erg):', e.message);
+
+  const payload = JSON.stringify({
+    topic: NTFY,
+    title: 'Verstuurd naar ' + CONFIG.naam,
+    message: tekst,
+    tags: ['white_check_mark'],
+    priority: 2,
+  });
+
+  // Drie pogingen. Dit is de enige manier waarop jij ziet dat het gelukt is, dus
+  // een enkele hik mag hem niet stilletjes laten vallen.
+  for (let poging = 1; poging <= 3; poging++) {
+    try {
+      const r = await fetch('https://ntfy.sh/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload,
+        signal: AbortSignal.timeout(15000),
+      });
+      if (r.ok) { if (poging > 1) log(`ntfy-melding gelukt bij poging ${poging}`); return; }
+      log(`ntfy-melding gaf status ${r.status} (poging ${poging}/3)`);
+    } catch (e) {
+      // e.message is bij fetch vaak alleen "fetch failed"; de echte reden zit in cause
+      const reden = [e.message, e.cause?.code, e.cause?.message].filter(Boolean).join(' | ');
+      log(`ntfy-melding mislukt (poging ${poging}/3): ${reden}`);
+    }
+    if (poging < 3) await new Promise((r) => setTimeout(r, poging * 3000));
   }
+  log('ntfy-melding definitief niet gelukt; het bericht naar ' + CONFIG.naam + ' is wel verstuurd');
 }
 
 // ---- statuspaneel --------------------------------------------------------
@@ -245,6 +265,14 @@ ${qrSvg ? `<div class="kaart"><b>Scan met WhatsApp</b><p style="opacity:.7;font-
   <dt>verstuurt om</dt><dd>${String(UUR).padStart(2, '0')}:${String(MINUUT).padStart(2, '0')} (${TZ})</dd>
   <dt>ontvanger</dt><dd>+${NUMMER.slice(0, 4)}&hellip;${NUMMER.slice(-3)}</dd>
 </dl></div>
+${(s.historie || []).length ? `<div class="kaart"><dt>werkelijk verstuurd</dt>
+<table style="width:100%;border-collapse:collapse;font-size:.9rem;margin-top:.5rem">
+${s.historie.map((h) => `<tr>
+  <td style="padding:.3rem .5rem .3rem 0;font-weight:700;white-space:nowrap">dag ${h.dag}</td>
+  <td style="padding:.3rem .5rem;opacity:.6;white-space:nowrap;font-size:.8rem">${h.wanneer} UTC</td>
+  <td style="padding:.3rem 0;opacity:.85">${String(h.eersteRegel).replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}</td>
+</tr>`).join('')}
+</table></div>` : ''}
 <div class="kaart"><dt>bericht van vandaag</dt>
 <pre>${(u.tekst || u.reden || '').replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}</pre></div>
 </html>`);
@@ -406,12 +434,22 @@ async function probeerTeVersturen(negeerTijd = false) {
 
       // Direct wegschrijven, per bericht. Valt de verbinding halverwege een
       // inhaalslag weg, dan gaat er niets dubbel als hij terugkomt.
+      // Eigen logboek van wat er echt de deur uit is. WhatsApp kan op je telefoon
+      // "Wachten op dit bericht" laten zien als het gekoppelde apparaat zijn eigen
+      // kopie niet kan ontsleutelen; dan is dit de enige betrouwbare bron.
+      const regel = {
+        dag,
+        wanneer: new Date().toISOString().slice(0, 19).replace('T', ' '),
+        eersteRegel: o.tekst.split(/\r?\n/).filter(Boolean)[1] || '',
+      };
+
       bewaarStand({
         ontvanger: NUMMER,
         verstuurd: [...s.verstuurd, dag],
         laatstVerstuurd: vandaagISO(),
         laatsteDag: dag,
         aantal: (s.aantal || 0) + 1,
+        historie: [regel, ...(s.historie || [])].slice(0, 10),
       });
 
       await meldAanJezelf(`${kop}\n\n${o.tekst.split('\n').filter(Boolean).slice(0, 3).join('\n')}...`);
