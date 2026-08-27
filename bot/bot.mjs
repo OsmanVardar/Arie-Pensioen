@@ -140,6 +140,43 @@ function dagenTot(iso) {
   );
 }
 
+// ---- opslag van verzonden berichten --------------------------------------
+//
+// Dit is de kern van het probleem dat "Wachten op dit bericht" veroorzaakte.
+//
+// Kan de telefoon van de ontvanger een bericht niet ontsleutelen, dan vraagt WhatsApp
+// het automatisch nog een keer op bij de verzender. Baileys handelt dat af door het
+// oorspronkelijke bericht op te zoeken via de functie getMessage. De standaardwaarde
+// daarvan is `async () => undefined`: geen bericht, dus niets om terug te sturen, en
+// de placeholder blijft voor altijd staan.
+//
+// Daarom houden we bij wat we verstuurd hebben, op het volume zodat het een herstart
+// overleeft, en geven we getMessage mee die daaruit leest.
+
+const VERZONDEN = join(DATA, 'verzonden-berichten.json');
+const BEWAAR_AANTAL = 100;
+
+function verzondenLezen() {
+  if (!existsSync(VERZONDEN)) return {};
+  try { return JSON.parse(readFileSync(VERZONDEN, 'utf8')) || {}; }
+  catch { return {}; }
+}
+
+function verzondenBewaren(id, inhoud) {
+  const alles = verzondenLezen();
+  alles[id] = { inhoud, wanneer: Date.now() };
+
+  // oudste eruit, anders groeit dit bestand 250 dagen lang door
+  const ids = Object.keys(alles).sort((a, b) => (alles[b].wanneer || 0) - (alles[a].wanneer || 0));
+  const bijgesneden = {};
+  for (const k of ids.slice(0, BEWAAR_AANTAL)) bijgesneden[k] = alles[k];
+
+  try { writeFileSync(VERZONDEN, JSON.stringify(bijgesneden), 'utf8'); }
+  catch (e) { log('kon verzonden bericht niet bewaren:', e.message); }
+}
+
+let retryTeller = 0;
+
 const LEEG = { ontvanger: null, verstuurd: [], laatstVerstuurd: null, aantal: 0 };
 let wisselGemeld = false;
 
@@ -253,7 +290,8 @@ async function stuurKopieen(tekst, kop) {
     if (!verbonden) { log(`geen verbinding, kopie naar ${mee} overgeslagen`); continue; }
     try {
       await new Promise((r) => setTimeout(r, 2000));
-      await sok.sendMessage(mee + '@s.whatsapp.net', { text: tekst });
+      const kopie = await sok.sendMessage(mee + '@s.whatsapp.net', { text: tekst });
+      if (kopie?.key?.id && kopie.message) verzondenBewaren(kopie.key.id, kopie.message);
       log(`kopie verstuurd naar ${mee}`);
     } catch (e) {
       log(`kopie naar ${mee} mislukt (${CONFIG.naam} heeft het bericht wel): ${e.message}`);
@@ -414,6 +452,8 @@ ${qrSvg ? `<div class="kaart"><b>Scan met WhatsApp</b><p style="opacity:.7;font-
   <dt>klaar om te versturen</dt><dd>${rij.length
     ? `${rij.length} bericht${rij.length === 1 ? '' : 'en'} &mdash; dag ${rij.join(', ')}` : 'niets, alles is bij'}</dd>
   <dt>laatst verstuurd</dt><dd>${s.laatstVerstuurd || 'nog niets'}</dd>
+  <dt>heropgevraagd door WhatsApp</dt><dd>${retryTeller}${retryTeller ? ' &mdash; en opnieuw geleverd' : ''}</dd>
+  <dt>berichten in de opslag</dt><dd>${Object.keys(verzondenLezen()).length}</dd>
   <dt>totaal verstuurd</dt><dd>${s.aantal || 0}</dd>
   <dt>verstuurt om</dt><dd>${String(UUR).padStart(2, '0')}:${String(MINUUT).padStart(2, '0')} (${TZ})</dd>
   <dt>ontvanger</dt><dd>+${NUMMER.slice(0, 4)}&hellip;${NUMMER.slice(-3)}</dd>
@@ -475,6 +515,19 @@ async function verbind() {
     logger: pino({ level: 'silent' }),
     browser: ['Arie aftelling', 'Chrome', '1.0.0'],
     markOnlineOnConnect: false,
+
+    // Hiermee kan Baileys een bericht opnieuw versturen als de ontvanger het niet
+    // kon ontsleutelen. Zonder dit blijft daar "Wachten op dit bericht" staan.
+    getMessage: async (key) => {
+      const bewaard = verzondenLezen()[key.id];
+      if (bewaard) {
+        retryTeller++;
+        log(`WhatsApp vroeg bericht ${key.id} opnieuw op; teruggestuurd uit de opslag`);
+        return bewaard.inhoud;
+      }
+      log(`WhatsApp vroeg bericht ${key.id} opnieuw op, maar dat zit niet meer in de opslag`);
+      return undefined;
+    },
   });
 
   sok.ev.on('creds.update', saveCreds);
@@ -589,7 +642,8 @@ async function probeerTeVersturen(negeerTijd = false) {
       const o = tekstVoorDag(dag, dagenNu, s.verstuurd.length === 0);
       if (!o) { log(`geen bericht voor dag ${dag}, overgeslagen`); continue; }
 
-      await sok.sendMessage(NUMMER + '@s.whatsapp.net', { text: o.tekst });
+      const verzonden = await sok.sendMessage(NUMMER + '@s.whatsapp.net', { text: o.tekst });
+      if (verzonden?.key?.id && verzonden.message) verzondenBewaren(verzonden.key.id, verzonden.message);
 
       const kop = `dag ${dag}` + (typeof o.bericht.dienstenTeGaan === 'number'
         ? `, nog ${o.bericht.dienstenTeGaan} diensten` : '');

@@ -256,6 +256,29 @@ WhatsApp-synchronisatie afhangen:
 - de **ntfy-melding**, met de volledige tekst
 - de pagina voor Arie zelf op `/arie`
 
+## Waarom berichten onleesbaar bleven, en wat daar nu tegen staat
+
+Vastgesteld op 27 augustus 2026. Dit was de eigenlijke oorzaak.
+
+Kan de telefoon van de ontvanger een bericht niet ontsleutelen, dan vraagt WhatsApp het
+automatisch nog een keer op bij de verzender. Baileys handelt dat af door het
+oorspronkelijke bericht op te zoeken via de optie `getMessage`. De standaardwaarde daarvan
+is letterlijk:
+
+```js
+getMessage: async () => undefined,
+```
+
+Die optie hadden wij niet meegegeven. Dus: Arie's telefoon vroeg het bericht opnieuw op,
+Baileys vond niets, stuurde niets terug, en de placeholder bleef voor altijd staan. Geen
+versleutelingsdrift, geen Railway-probleem: de bot antwoordde simpelweg nooit op "stuur dat
+nog eens".
+
+De bot bewaart nu de laatste honderd verstuurde berichten in `verzonden-berichten.json` op
+het volume, en geeft `getMessage` mee die daaruit leest. Op het statuspaneel zie je bij
+**heropgevraagd door WhatsApp** hoe vaak dat gebeurd is. Staat daar een getal boven nul,
+dan doet dit precies zijn werk.
+
 ## Als de berichten bij Arie onleesbaar blijven
 
 Symptoom: bij hem staat *"Wachten op dit bericht"* of *"Dit bericht is verwijderd"*, terwijl
