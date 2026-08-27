@@ -256,6 +256,24 @@ WhatsApp-synchronisatie afhangen:
 - de **ntfy-melding**, met de volledige tekst
 - de pagina voor Arie zelf op `/arie`
 
+## Als de berichten bij Arie onleesbaar blijven
+
+Symptoom: bij hem staat *"Wachten op dit bericht"* of *"Dit bericht is verwijderd"*, terwijl
+de logs zeggen dat het verstuurd is en de kopie naar de meelezer wel leesbaar aankomt.
+
+Dan is de Signal-sessie tussen dit apparaat en zijn telefoon uit de pas gelopen. Dat
+herstelt zichzelf niet. Op het paneel staat per bericht de knop **verse sessie**: die gooit
+de sessiebestanden van dat nummer weg en verstuurt vijf seconden later opnieuw. De
+volgende verzending doet dan een verse sleuteluitwisseling.
+
+`creds.json` blijft staan, dus je hoeft niet opnieuw te koppelen. Alleen bestanden die met
+`session-` beginnen en dat nummer bevatten gaan eruit; sessies met andere ontvangers
+blijven intact.
+
+Hoe je vaststelt dat het hier om gaat: kijk of de kopie naar de meelezer wel leesbaar is.
+Zelfde bot, zelfde seconde, andere ontvanger. Komt die wel goed aan, dan zit het probleem
+in die ene sessie en niet in de bot, het netwerk of Railway.
+
 ## Als het misgaat
 
 **Verbinding valt weg.** Dat gebeurt; hij probeert vanzelf elke tien seconden opnieuw.

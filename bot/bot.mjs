@@ -12,7 +12,7 @@
 // De berichten komen uit ../api/_data.js, precies hetzelfde bestand dat de site en
 // de Vercel-cron gebruiken. Eén bron, geen tweede kopie die uit de pas kan lopen.
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { setDefaultResultOrder } from 'node:dns';
 import { join, dirname } from 'node:path';
@@ -262,6 +262,33 @@ async function stuurKopieen(tekst, kop) {
   await meldAanJezelf(`${kop}\n\n${tekst}`);
 }
 
+// Gooit de versleutelde sessie met één ontvanger weg, zodat de volgende verzending
+// een verse sleuteluitwisseling doet.
+//
+// Nodig als berichten wel aankomen maar onleesbaar blijven ("Wachten op dit bericht"
+// of "Dit bericht is verwijderd" aan de kant van de ontvanger). Dan is de Signal-sessie
+// tussen dit apparaat en die telefoon uit de pas gelopen, en herstelt hij zichzelf niet.
+//
+// Alleen bestanden die met session- beginnen én dit nummer bevatten gaan eruit.
+// creds.json blijft staan: dat is de koppeling zelf, en die willen we niet kwijt.
+function nieuweSessie(nummer) {
+  let weg = [];
+  try {
+    for (const naam of readdirSync(AUTH)) {
+      if (naam.startsWith('session-') && naam.includes(nummer)) {
+        rmSync(join(AUTH, naam), { force: true });
+        weg.push(naam);
+      }
+    }
+  } catch (e) {
+    log('sessie opschonen mislukt:', e.message);
+    return { weg: [], fout: e.message };
+  }
+  if (weg.length) log(`sessie met ${nummer} weggegooid (${weg.length} bestand(en)); de volgende verzending zet een nieuwe op`);
+  else log(`geen sessiebestanden gevonden voor ${nummer}; misschien was hij er al niet`);
+  return { weg };
+}
+
 // ---- statuspaneel --------------------------------------------------------
 
 // Alle verstuurde dagen als tabelrijen, meest recent eerst. We gaan uit van de lijst
@@ -309,6 +336,24 @@ function startPaneel() {
         log(`dag ${dag} weer in de wachtrij gezet op verzoek via het paneel`);
         probeerTeVersturen(true).catch((e) => log('opnieuw versturen mislukt:', e.message));
       }
+      res.writeHead(302, { Location: '/?k=' + encodeURIComponent(PANEL_TOKEN) });
+      res.end();
+      return;
+    }
+
+    // Verse sessie opzetten en de dag opnieuw sturen. Voor als berichten wel
+    // aankomen maar onleesbaar blijven bij de ontvanger.
+    if (url.pathname === '/nieuwe-sessie' && req.method === 'POST') {
+      const dag = Number(url.searchParams.get('dag'));
+      nieuweSessie(NUMMER);
+      const st = stand();
+      if (Number.isInteger(dag) && st.verstuurd.includes(dag)) {
+        bewaarStand({ ...st, verstuurd: st.verstuurd.filter((d) => d !== dag) });
+      }
+      log('verse sessie gevraagd via het paneel; opnieuw versturen over 5 seconden');
+      setTimeout(() => {
+        probeerTeVersturen(true).catch((e) => log('versturen na verse sessie mislukt:', e.message));
+      }, 5000);
       res.writeHead(302, { Location: '/?k=' + encodeURIComponent(PANEL_TOKEN) });
       res.end();
       return;
@@ -375,7 +420,10 @@ ${qrSvg ? `<div class="kaart"><b>Scan met WhatsApp</b><p style="opacity:.7;font-
   ${MEELEZERS.length ? `<dt>kopie ook naar</dt><dd>${MEELEZERS.map((n) => '+' + n.slice(0, 4) + '&hellip;' + n.slice(-3)).join(', ')}</dd>` : ''}
 </dl></div>
 ${(s.verstuurd || []).length ? `<div class="kaart"><dt>werkelijk verstuurd</dt>
-<p style="font-size:.8rem;opacity:.6;margin:.3rem 0 0">Kwam een bericht niet aan? Dan zet de knop hem terug in de wachtrij.</p>
+<p style="font-size:.8rem;opacity:.6;margin:.3rem 0 .1rem"><b>alleen ik</b> stuurt de tekst naar de meelezers, ${esc(CONFIG.naam)} krijgt niets.
+<b>opnieuw</b> stuurt hem naar iedereen.
+<b>verse sessie</b> gooit eerst de versleutelde sessie met ${esc(CONFIG.naam)} weg en stuurt daarna opnieuw &mdash;
+gebruik die als hij bij hem onleesbaar blijft ("Wachten op dit bericht" of "Dit bericht is verwijderd").</p>
 <table style="width:100%;border-collapse:collapse;font-size:.9rem;margin-top:.5rem">
 ${rijenVerstuurd(s).map((h) => `<tr>
   <td style="padding:.3rem .5rem .3rem 0;font-weight:700;white-space:nowrap">dag ${h.dag}</td>
@@ -384,6 +432,7 @@ ${rijenVerstuurd(s).map((h) => `<tr>
   <td style="padding:.3rem 0 .3rem .5rem;text-align:right;white-space:nowrap">
     ${MEELEZERS.length ? `<form method="post" action="/kopie?k=${encodeURIComponent(PANEL_TOKEN)}&amp;dag=${h.dag}" style="display:inline;margin:0"><button type="submit" title="Alleen naar de meelezers, ${esc(CONFIG.naam)} krijgt niets" style="font:inherit;font-size:.75rem;padding:.2rem .5rem;border:1px solid currentColor;border-radius:6px;background:none;color:inherit;opacity:.6;cursor:pointer">alleen ik</button></form>` : ''}
     <form method="post" action="/opnieuw?k=${encodeURIComponent(PANEL_TOKEN)}&amp;dag=${h.dag}" style="display:inline;margin:0 0 0 .3rem"><button type="submit" title="Opnieuw naar ${esc(CONFIG.naam)} en de meelezers" style="font:inherit;font-size:.75rem;padding:.2rem .5rem;border:1px solid currentColor;border-radius:6px;background:none;color:inherit;opacity:.6;cursor:pointer">opnieuw</button></form>
+    <form method="post" action="/nieuwe-sessie?k=${encodeURIComponent(PANEL_TOKEN)}&amp;dag=${h.dag}" style="display:inline;margin:0 0 0 .3rem"><button type="submit" title="Gooi de versleutelde sessie met ${esc(CONFIG.naam)} weg en stuur opnieuw" style="font:inherit;font-size:.75rem;padding:.2rem .5rem;border:1px solid #d4573d;border-radius:6px;background:none;color:#d4573d;cursor:pointer">verse sessie</button></form>
   </td>
 </tr>`).join('')}
 </table></div>` : ''}
